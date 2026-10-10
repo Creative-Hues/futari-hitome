@@ -2,6 +2,7 @@ import { useEffect } from 'preact/hooks';
 import { useHash } from './lib/router';
 import { Album } from './screens/Album';
 import { AlbumDetail } from './screens/AlbumDetail';
+import { Help } from './screens/Help';
 import { Home } from './screens/Home';
 import { Knit } from './screens/Knit';
 import { NewWork } from './screens/NewWork';
@@ -23,6 +24,7 @@ export function App() {
   if (hash === '#/partners') return <Partners />;
   if (hash === '#/settings') return <Settings />;
   if (hash === '#/settings/room') return <RoomSettings />;
+  if (hash === '#/settings/help') return <Help />;
   const pm = hash.match(/^#\/partner\/(.+)$/);
   if (pm) return <PartnerDetail key={pm[1]} animal={decodeURIComponent(pm[1])} />;
   const m = hash.match(/^#\/(knit|record|album)\/(.+)$/);

@@ -7,12 +7,13 @@ import { defaultInteriorShape, WEAR_DEPTS } from '../data/wear';
 import type { AnimalId, PartnerData, RoomData, Work } from './db';
 import { initialDisplay, initialWearing } from './wardrobe';
 
-export const CURRENT_DATA_VERSION = 4;
+export const CURRENT_DATA_VERSION = 5;
 
 /** 音声入力で1カウントになる言葉(最初) */
 export const DEFAULT_VOICE_WORDS = ['あみ'];
 
-type AnyDB = IDBPDatabase<any>;
+/** IndexedDB(または、読み込むファイルを直すときの、同じ get / getAll / put が使えるメモリの中の入れ物) */
+export type AnyDB = Pick<IDBPDatabase<any>, 'get' | 'getAll' | 'put'>;
 
 /** まだ出会っていない子の、最初の個体データ */
 export function newPartner(animal: AnimalId): PartnerData {
@@ -124,7 +125,24 @@ const STEPS: Record<number, (db: AnyDB) => Promise<void>> = {
     const settings = await db.get('settings', 'app');
     if (!settings.voiceWords) await db.put('settings', { ...settings, voiceWords: DEFAULT_VOICE_WORDS });
   },
+  // 4 → 5:設定に「最後に書き出した日」を足す
+  4: async (db) => {
+    const settings = await db.get('settings', 'app');
+    if (settings.lastExportedAt === undefined) await db.put('settings', { ...settings, lastExportedAt: null });
+  },
 };
+
+/** バージョン from のデータを、STEPS を順に動かして今の形に直す。直したあとのバージョンを返す */
+export async function runSteps(db: AnyDB, from: number): Promise<number> {
+  let version = from;
+  while (version < CURRENT_DATA_VERSION) {
+    const step = STEPS[version];
+    if (!step) throw new Error(`データのバージョン ${version} を直す方法がありません`);
+    await step(db);
+    version += 1;
+  }
+  return version;
+}
 
 export async function migrate(db: AnyDB): Promise<void> {
   const settings = await db.get('settings', 'app');
@@ -135,18 +153,13 @@ export async function migrate(db: AnyDB): Promise<void> {
       dataVersion: CURRENT_DATA_VERSION,
       quickAdds: [10],
       voiceWords: DEFAULT_VOICE_WORDS,
+      lastExportedAt: null,
     });
     for (const p of partnersFromWorks([])) await db.put('partners', p);
     await db.put('room', newRoom());
     return;
   }
-  let version: number = settings.dataVersion ?? 1;
-  while (version < CURRENT_DATA_VERSION) {
-    const step = STEPS[version];
-    if (!step) throw new Error(`データのバージョン ${version} を直す方法がありません`);
-    await step(db);
-    version += 1;
-  }
+  const version = await runSteps(db, settings.dataVersion ?? 1);
   if (version !== settings.dataVersion) {
     await db.put('settings', { ...(await db.get('settings', 'app')), dataVersion: version });
   }

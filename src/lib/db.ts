@@ -69,6 +69,8 @@ export interface Settings {
   quickAdds: number[];
   /** 音声入力で1カウントになる言葉 */
   voiceWords: string[];
+  /** この端末で最後に書き出した日(ISO文字列)。まだなら null */
+  lastExportedAt: string | null;
 }
 
 /** 動物ごとに1匹のパートナーの個体データ */
@@ -133,6 +135,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dataVersion: CURRENT_DATA_VERSION,
   quickAdds: [10],
   voiceWords: DEFAULT_VOICE_WORDS,
+  lastExportedAt: null,
 };
 
 let dbPromise: Promise<IDBPDatabase<FutariDB>> | null = null;
@@ -349,4 +352,70 @@ export async function getRoom(): Promise<RoomData> {
 
 export async function saveRoom(room: RoomData): Promise<void> {
   await (await db()).put('room', room);
+}
+
+// ---------- 書き出し・読み込み ----------
+
+/** 5つの入れ物の中身すべて */
+export interface Snapshot {
+  settings: Settings;
+  works: Work[];
+  partners: PartnerData[];
+  photos: Photo[];
+  room: RoomData;
+}
+
+/** 書き出し用に、すべてを読み出す */
+export async function readAll(): Promise<Snapshot> {
+  const tx = (await db()).transaction(['settings', 'works', 'partners', 'photos', 'room'], 'readonly');
+  const [settings, works, partners, photos, room] = await Promise.all([
+    tx.objectStore('settings').get('app'),
+    tx.objectStore('works').getAll(),
+    tx.objectStore('partners').getAll(),
+    tx.objectStore('photos').getAll(),
+    tx.objectStore('room').get('room'),
+  ]);
+  await tx.done;
+  return {
+    settings: { ...DEFAULT_SETTINGS, ...settings },
+    works,
+    partners,
+    photos,
+    room: { ...newRoom(), ...room },
+  };
+}
+
+/**
+ * すべてを snap の中身に置き換える。1つのまとまった保存なので、途中で失敗したら何も変わらない。
+ * 「最後に書き出した日」はこの端末のものを残す
+ */
+export async function replaceAll(snap: Snapshot): Promise<void> {
+  const tx = (await db()).transaction(['settings', 'works', 'partners', 'photos', 'room'], 'readwrite');
+  const settings = tx.objectStore('settings');
+  const here = await settings.get('app');
+  const stores = ['settings', 'works', 'partners', 'photos', 'room'] as const;
+  try {
+    await Promise.all(stores.map((s) => tx.objectStore(s).clear()));
+    await Promise.all([
+      settings.put({
+        ...snap.settings,
+        dataVersion: CURRENT_DATA_VERSION,
+        lastExportedAt: here?.lastExportedAt ?? null,
+      }),
+      ...snap.works.map((w) => tx.objectStore('works').put(w)),
+      ...snap.partners.map((p) => tx.objectStore('partners').put(p)),
+      ...snap.photos.map((p) => tx.objectStore('photos').put(p)),
+      tx.objectStore('room').put(snap.room),
+    ]);
+  } catch (e) {
+    // 途中で失敗したら全部取り消す(消した分も元に戻る)
+    try {
+      tx.abort();
+    } catch {
+      // すでに取り消されている
+    }
+    await tx.done.catch(() => {});
+    throw e;
+  }
+  await tx.done;
 }

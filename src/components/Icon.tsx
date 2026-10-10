@@ -43,6 +43,27 @@ const PATHS = {
     </>
   ),
   grip: <path d="M8 7h8M8 12h8M8 17h8" />,
+  export: (
+    <>
+      <path d="M12 15V4" />
+      <path d="m7.5 8.5 4.5-4.5 4.5 4.5" />
+      <path d="M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13" />
+    </>
+  ),
+  import: (
+    <>
+      <path d="M12 4v11" />
+      <path d="m7.5 10.5 4.5 4.5 4.5-4.5" />
+      <path d="M5 13v5.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V13" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.7" />
+      <path d="M12 17.2v.1" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof PATHS;

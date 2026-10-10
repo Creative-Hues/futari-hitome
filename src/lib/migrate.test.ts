@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { partnersFromWorks, pickKnitting, workToV2, workToV3 } from './migrate';
+import { CURRENT_DATA_VERSION, migrate, partnersFromWorks, pickKnitting, workToV2, workToV3, type AnyDB } from './migrate';
 
 describe('データのバージョン 1 → 2', () => {
   it('6匹分の個体データができ、作品のある子だけ出会っている', () => {
@@ -64,5 +64,24 @@ describe('データのバージョン 2 → 3', () => {
 
   it('新しい子は、今編んでいる作品なし', () => {
     expect(partnersFromWorks([]).every((p) => p.knittingWorkId === null)).toBe(true);
+  });
+});
+
+describe('データのバージョン 4 → 5', () => {
+  it('設定に「最後に書き出した日」(null)が足され、ほかはそのまま', async () => {
+    const data = new Map<string, any>([['settings', { key: 'app', dataVersion: 4, quickAdds: [5], voiceWords: ['はい'] }]]);
+    const db = {
+      get: async (s: string) => data.get(s),
+      getAll: async () => [],
+      put: async (s: string, v: any) => data.set(s, v),
+    } as unknown as AnyDB;
+    await migrate(db);
+    expect(data.get('settings')).toEqual({
+      key: 'app',
+      dataVersion: CURRENT_DATA_VERSION,
+      quickAdds: [5],
+      voiceWords: ['はい'],
+      lastExportedAt: null,
+    });
   });
 });

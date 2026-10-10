@@ -12,6 +12,7 @@ export const routes = {
   partner: (animal: string) => `#/partner/${animal}`,
   settings: () => '#/settings',
   roomSettings: () => '#/settings/room',
+  help: () => '#/settings/help',
 };
 
 export function go(hash: string, replace = false) {
