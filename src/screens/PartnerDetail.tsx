@@ -30,6 +30,7 @@ import {
   type Work,
 } from '../lib/db';
 import { formatDate } from '../lib/knitTime';
+import { pausedWorks } from '../lib/lifecycle';
 import { routes } from '../lib/router';
 import { displayableWorks, lookOf, wearableWorks } from '../lib/wardrobe';
 import { partsOf } from './Partners';
@@ -99,6 +100,7 @@ export function PartnerDetail({ animal }: { animal: string }) {
   const interiors = displayableWorks(works).filter((w) => w.giftedTo === valid);
   const together = works.filter((w) => (w.giftedTo ?? w.partner) === valid);
   const wip = together.filter((w) => w.status === 'wip');
+  const resting = pausedWorks(together);
   const done = together
     .filter((w) => w.status === 'done')
     .sort((a, b) => ((a.finishedAt ?? '') < (b.finishedAt ?? '') ? 1 : -1));
@@ -253,13 +255,20 @@ export function PartnerDetail({ animal }: { animal: string }) {
         <section class="field">
           <h2 class="field-title">一緒に編んだ作品</h2>
           {together.length === 0 && <p class="field-note">まだありません</p>}
-          {[...wip, ...done].map((w) => (
-            <a class="together card" href={w.status === 'wip' ? routes.knit(w.id) : routes.albumWork(w.id)}>
+          {[...wip, ...resting, ...done].map((w) => (
+            <a
+              class="together card"
+              href={
+                w.status === 'wip' ? routes.knit(w.id) : w.status === 'paused' ? routes.pausedHome() : routes.albumWork(w.id)
+              }
+            >
               <span class="dot" style={{ background: w.color }} />
               <span class="name">{w.name}</span>
               <span class="sub">
                 {w.status === 'wip'
                   ? `編みかけ ${Math.round(workProgress(w) * 100)}%`
+                  : w.status === 'paused'
+                  ? `お休み中 ${Math.round(workProgress(w) * 100)}%`
                   : `完成 ${w.finishedAt ? formatDate(w.finishedAt) : ''}`}
               </span>
             </a>

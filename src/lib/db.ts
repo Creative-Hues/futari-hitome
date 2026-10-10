@@ -5,6 +5,7 @@ import type { InteriorShape, WearDept } from '../data/wear';
 import type { Count } from './counter';
 import { CURRENT_DATA_VERSION, DEFAULT_VOICE_WORDS, migrate, newPartner, newRoom, pickKnitting } from './migrate';
 import type { Pattern } from './pattern';
+import { knitOnResume, partnerAfterDelete, paused, releaseKnitting, resumed, roomAfterDelete } from './lifecycle';
 import { displayOnComplete, undisplay, unwear, wearOnComplete } from './wardrobe';
 
 export type DepartmentId = 'head' | 'neck' | 'body' | 'paw' | 'wear' | 'interior';
@@ -29,7 +30,8 @@ export interface Work {
   /** 種類名(マフラー、帽子など) */
   kind: string;
   partner: AnimalId;
-  status: 'wip' | 'done';
+  /** 編みかけ / お休み / 完成 */
+  status: 'wip' | 'paused' | 'done';
   /** 並び順(小さいほど上) */
   order: number;
   /** 作品の色 */
@@ -55,6 +57,8 @@ export interface Work {
   startedAt: string;
   /** 完成した日(ISO文字列)。編みかけは null */
   finishedAt: string | null;
+  /** お休みにした日(ISO文字列)。お休みでなければ null */
+  pausedAt: string | null;
   /** 完成した作品をもらった子。編みかけは null */
   giftedTo: AnimalId | null;
   /** 小物やインテリアの作品を部屋に飾るときの絵。ほかの部門は null */
@@ -271,6 +275,58 @@ export async function reopenWork(id: string): Promise<Work | undefined> {
   if (room) await rooms.put(undisplay(room, id));
   await tx.done;
   return wip;
+}
+
+/** お休みにする。その子の「今編んでいる作品」だったら、ほかの編みかけ(なければ「なし」)に移す */
+export async function pauseWork(id: string): Promise<Work | undefined> {
+  const tx = (await db()).transaction(['works', 'partners'], 'readwrite');
+  const works = tx.objectStore('works');
+  const partners = tx.objectStore('partners');
+  const w = await works.get(id);
+  if (!w || w.status !== 'wip') return undefined;
+  const next = paused(w, new Date().toISOString());
+  await works.put(next);
+  const p = await partners.get(w.partner);
+  if (p) await partners.put(releaseKnitting(p, id, await works.getAll()));
+  await tx.done;
+  return next;
+}
+
+/** 再開する:編みかけに戻して一覧の一番上へ。その子の「今編んでいる作品」がなければ、この作品にする */
+export async function resumeWork(id: string): Promise<Work | undefined> {
+  const tx = (await db()).transaction(['works', 'partners'], 'readwrite');
+  const works = tx.objectStore('works');
+  const partners = tx.objectStore('partners');
+  const w = await works.get(id);
+  if (!w || w.status !== 'paused') return undefined;
+  const all = await works.getAll();
+  const next = resumed(w, all);
+  await works.put(next);
+  await partners.put(knitOnResume((await partners.get(w.partner)) ?? newPartner(w.partner), id, all));
+  await tx.done;
+  return next;
+}
+
+/**
+ * 作品を消す(編みかけ・お休み・完成どれでも)。その作品の写真もすべて消し、身につけていれば外し、
+ * 飾っていればはずす。1つのまとまった保存なので、途中で失敗したら何も消えない
+ */
+export async function deleteWork(id: string): Promise<void> {
+  const tx = (await db()).transaction(['works', 'photos', 'partners', 'room'], 'readwrite');
+  const works = tx.objectStore('works');
+  const photos = tx.objectStore('photos');
+  const partners = tx.objectStore('partners');
+  const rooms = tx.objectStore('room');
+  const all = await works.getAll();
+  await works.delete(id);
+  for (const key of await photos.index('byWork').getAllKeys(id)) await photos.delete(key);
+  for (const p of await partners.getAll()) {
+    const next = partnerAfterDelete(p, id, all);
+    if (next !== p) await partners.put(next);
+  }
+  const room = await rooms.get('room');
+  if (room) await rooms.put(roomAfterDelete(room, id));
+  await tx.done;
 }
 
 // ---------- パートナー ----------

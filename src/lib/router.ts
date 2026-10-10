@@ -3,6 +3,8 @@ import { useEffect, useState } from 'preact/hooks';
 
 export const routes = {
   home: () => '#/',
+  /** ホーム(「お休み中」を開いた状態) */
+  pausedHome: () => '#/?paused',
   newWork: () => '#/new',
   knit: (id: string) => `#/knit/${encodeURIComponent(id)}`,
   record: (id: string) => `#/record/${encodeURIComponent(id)}`,

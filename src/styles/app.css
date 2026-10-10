@@ -2374,3 +2374,113 @@ textarea {
   line-height: 1.7;
   color: var(--text-sub);
 }
+
+/* メモのシート・アルバムの記録:お休みにする・消す */
+.link-button.pause-link {
+  align-self: center;
+  color: var(--text-sub);
+}
+
+.link-button.delete-link {
+  align-self: center;
+  margin-top: 12px;
+  color: var(--pink-text);
+}
+
+/* ホーム:お休み中 */
+.resting {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 20px;
+}
+
+.resting-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--tap-min);
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+
+.resting-toggle > svg {
+  color: var(--text-faint);
+  transition: transform var(--sheet-duration) ease-out;
+}
+
+.resting-toggle[aria-expanded='true'] > svg {
+  transform: rotate(90deg);
+}
+
+.paused-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 16px 6px 8px;
+}
+
+.paused-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.paused-card .thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--partner-bg);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.75;
+}
+
+.paused-card .thumb .partner {
+  width: 48px;
+}
+
+.paused-card .info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.paused-card .name {
+  font-weight: 700;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paused-card .sub {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.paused-card .amount {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.paused-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-left: 8px;
+}
+
+.paused-actions .link-button.delete-link {
+  margin-top: 0;
+}

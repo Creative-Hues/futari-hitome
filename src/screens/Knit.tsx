@@ -12,11 +12,13 @@ import { defaultInteriorShape } from '../data/wear';
 import { add, progress, pushHistory, snapProgress, undo, unravel, workProgress, type Count } from '../lib/counter';
 import {
   completeWork,
+  deleteWork,
   getPartner,
   getSettings,
   getWork,
   listPartners,
   listWorks,
+  pauseWork,
   saveSettings,
   saveWork,
   setKnitting,
@@ -42,7 +44,7 @@ export function Knit({ id }: { id: string }) {
   const [work, setWork] = useState<Work | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [missing, setMissing] = useState(false);
-  const [sheet, setSheet] = useState<'plus' | 'unravel' | 'pattern' | 'memo' | 'complete' | null>(null);
+  const [sheet, setSheet] = useState<'plus' | 'unravel' | 'pattern' | 'memo' | 'complete' | 'pause' | 'delete' | null>(null);
   const [partner, setPartner] = useState<PartnerData | null>(null);
   /** 編みかけの作品(タブと、同じ子が編んでいる別の作品) */
   const [wip, setWip] = useState<Work[]>([]);
@@ -61,6 +63,8 @@ export function Knit({ id }: { id: string }) {
       if (!w) return setMissing(true);
       // 完成した作品はアルバムで見る
       if (w.status === 'done') return go(routes.albumWork(w.id), true);
+      // お休みの作品は数えられない。ホームの「お休み中」へ
+      if (w.status === 'paused') return go(routes.pausedHome(), true);
       workRef.current = w;
       setWork(w);
       const [p, works, ps] = await Promise.all([getPartner(w.partner), listWorks(), listPartners()]);
@@ -182,6 +186,19 @@ export function Knit({ id }: { id: string }) {
     if (!done) return;
     show(done);
     setCelebrating(true);
+  };
+
+  const pause = async () => {
+    setSheet(null);
+    stopVoice();
+    if (await pauseWork(id)) go(routes.home(), true);
+  };
+
+  const remove = async () => {
+    setSheet(null);
+    stopVoice();
+    await deleteWork(id);
+    go(routes.home(), true);
   };
 
   if (missing) {
@@ -350,6 +367,12 @@ export function Knit({ id }: { id: string }) {
           <button class="link-button finish-link" onClick={() => setSheet('complete')}>
             この作品を完成にする
           </button>
+          <button class="link-button pause-link" onClick={() => setSheet('pause')}>
+            お休みにする
+          </button>
+          <button class="link-button delete-link" onClick={() => setSheet('delete')}>
+            この作品を消す
+          </button>
         </Sheet>
       )}
       {sheet === 'complete' && (
@@ -358,6 +381,25 @@ export function Knit({ id }: { id: string }) {
           message={`「${work.name}」を完成にして、${name}にわたします。まちがえたときは、アルバムから編みかけに戻せます`}
           ok="完成!"
           onOk={finish}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === 'pause' && (
+        <ConfirmSheet
+          title="お休みにしますか?"
+          message="数・模様・メモ・写真・取り消しの履歴はそのまま残ります。ホームの一番下の「お休み中」から、いつでも再開できます"
+          ok="お休みにする"
+          onOk={pause}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === 'delete' && (
+        <ConfirmSheet
+          title="この作品を消しますか?"
+          message={`「${work.name}」の数・メモ・写真(編み図)がすべて消えます。元に戻せません`}
+          ok="消す"
+          danger
+          onOk={remove}
           onClose={() => setSheet(null)}
         />
       )}

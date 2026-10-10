@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_DATA_VERSION, migrate, partnersFromWorks, pickKnitting, workToV2, workToV3, type AnyDB } from './migrate';
+import { CURRENT_DATA_VERSION, migrate, partnersFromWorks, pickKnitting, workToV2, workToV3, workToV6, type AnyDB } from './migrate';
 
 describe('データのバージョン 1 → 2', () => {
   it('6匹分の個体データができ、作品のある子だけ出会っている', () => {
@@ -83,5 +83,13 @@ describe('データのバージョン 4 → 5', () => {
       voiceWords: ['はい'],
       lastExportedAt: null,
     });
+  });
+});
+
+describe('データのバージョン 5 → 6', () => {
+  it('作品に「お休みにした日」(null)が足され、ほかはそのまま', () => {
+    const v5 = { id: 'a', status: 'wip', count: { row: 3, stitch: 2 } };
+    expect(workToV6(v5)).toEqual({ ...v5, pausedAt: null });
+    expect(workToV6({ ...v5, pausedAt: '2026-10-10' }).pausedAt).toBe('2026-10-10');
   });
 });

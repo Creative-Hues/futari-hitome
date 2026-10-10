@@ -29,10 +29,13 @@ export function ConfirmSheet({
   ok,
   onOk,
   onClose,
+  danger = false,
 }: {
   title: string;
   message?: ComponentChildren;
   ok: string;
+  /** 消すなど、元に戻せない操作(ピンクのボタン) */
+  danger?: boolean;
   onOk: () => void;
   onClose: () => void;
 }) {
@@ -43,7 +46,7 @@ export function ConfirmSheet({
         <button class="secondary-button" onClick={onClose}>
           やめる
         </button>
-        <button class="primary-button" onClick={onOk}>
+        <button class={`primary-button${danger ? ' danger' : ''}`} onClick={onOk}>
           {ok}
         </button>
       </div>

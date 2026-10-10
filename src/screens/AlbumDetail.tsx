@@ -1,11 +1,11 @@
-// アルバムの記録の画面:完成記録の中身をすべて表示する。完成の取り消し(編みかけに戻す)もここ
+// アルバムの記録の画面:完成記録の中身をすべて表示する。完成の取り消し(編みかけに戻す)と、記録を消すのもここ
 import { useEffect, useState } from 'preact/hooks';
 import { Icon } from '../components/Icon';
 import { Partner } from '../components/Partner';
 import { PhotoList } from '../components/PhotoList';
 import { RecordFacts } from '../components/RecordFacts';
 import { ConfirmSheet } from '../components/Sheet';
-import { getWork, listPhotos, reopenWork, type Photo, type Work } from '../lib/db';
+import { deleteWork, getWork, listPhotos, reopenWork, type Photo, type Work } from '../lib/db';
 import { useLooks } from '../lib/looks';
 import { go, routes } from '../lib/router';
 import { Missing } from './Record';
@@ -16,7 +16,7 @@ export function AlbumDetail({ id }: { id: string }) {
   const [missing, setMissing] = useState(false);
   const [finished, setFinished] = useState<Photo[] | null>(null);
   const [patterns, setPatterns] = useState<Photo[] | null>(null);
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<'reopen' | 'delete' | null>(null);
 
   useEffect(() => {
     getWork(id).then((w) => {
@@ -29,9 +29,15 @@ export function AlbumDetail({ id }: { id: string }) {
   }, [id]);
 
   const reopen = async () => {
-    setConfirm(false);
+    setConfirm(null);
     const w = await reopenWork(id);
     if (w) go(routes.knit(w.id), true);
+  };
+
+  const remove = async () => {
+    setConfirm(null);
+    await deleteWork(id);
+    go(routes.album(), true);
   };
 
   if (missing) return <Missing />;
@@ -104,18 +110,35 @@ export function AlbumDetail({ id }: { id: string }) {
         <button class="primary-button" onClick={() => go(routes.record(work.id))}>
           記録を直す
         </button>
-        <button class="link-button reopen" onClick={() => setConfirm(true)}>
+        <button class="link-button reopen" onClick={() => setConfirm('reopen')}>
           編みかけに戻す
+        </button>
+        <button class="link-button delete-link" onClick={() => setConfirm('delete')}>
+          この記録を消す
         </button>
       </div>
 
-      {confirm && (
+      {confirm === 'reopen' && (
         <ConfirmSheet
           title="編みかけに戻しますか?"
           message={`完成した日と、${name}がもらった記録を消して、編みかけの作品に戻します。${work.department === 'interior' ? '部屋に飾っていれば、はずします。' : '身につけていれば、外します。'}写真と感想は残ります`}
           ok="編みかけに戻す"
           onOk={reopen}
-          onClose={() => setConfirm(false)}
+          onClose={() => setConfirm(null)}
+        />
+      )}
+      {confirm === 'delete' && (
+        <ConfirmSheet
+          title="この記録を消しますか?"
+          message={`「${work.name}」の作品・感想・メモ・写真(編み図と完成写真)がすべて消えます。${
+            work.department === 'interior'
+              ? '部屋に飾っていれば、はずします。'
+              : `${name}が身につけていれば外します。`
+          }元に戻せません`}
+          ok="消す"
+          danger
+          onOk={remove}
+          onClose={() => setConfirm(null)}
         />
       )}
     </main>

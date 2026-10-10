@@ -223,7 +223,7 @@ export function Settings() {
           <ul class="import-summary">
             {pending.summary.exportedAt && <li>書き出した日:{formatDay(pending.summary.exportedAt)}</li>}
             <li>
-              編みかけ {pending.summary.wip}つ ・ 完成 {pending.summary.done}つ
+              編みかけ {pending.summary.wip}つ ・ お休み {pending.summary.paused}つ ・ 完成 {pending.summary.done}つ
             </li>
             <li>
               写真 {pending.summary.photos}枚 ・ 会ったなかま {pending.summary.met}匹

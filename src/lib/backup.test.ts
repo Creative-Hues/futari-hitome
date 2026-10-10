@@ -32,6 +32,7 @@ function work(id: string, extra: Partial<Work> = {}): Work {
     lastCountAt: 1,
     startedAt: '2026-10-01T00:00:00.000Z',
     finishedAt: null,
+    pausedAt: null,
     giftedTo: null,
     interiorShape: null,
     updatedAt: '2026-10-02T00:00:00.000Z',
@@ -98,7 +99,7 @@ describe('書き出して読み込む', () => {
       expect(new Uint8Array(await blob.arrayBuffer())).toEqual(new Uint8Array(await b0.arrayBuffer()));
       expect(new Uint8Array(await thumb.arrayBuffer())).toEqual(new Uint8Array(await t0.arrayBuffer()));
     }
-    expect(r.summary).toEqual({ exportedAt: '2026-10-11T09:30:00.000Z', wip: 1, done: 1, photos: 2, met: 1 });
+    expect(r.summary).toEqual({ exportedAt: '2026-10-11T09:30:00.000Z', wip: 1, paused: 0, done: 1, photos: 2, met: 1 });
   });
 
   it('写真が20枚(1枚0.5MBほど)でも、部品の配列のままファイルにでき、読み込める', async () => {
@@ -251,5 +252,32 @@ describe('古いバージョンのファイルを今の形に直す', () => {
     if (!r.ok) throw new Error(r.reason);
     expect(r.snapshot.settings).toMatchObject({ dataVersion: CURRENT_DATA_VERSION, lastExportedAt: null, quickAdds: [10, 5] });
     expect(r.snapshot.works).toEqual(snapshot().works);
+  });
+});
+
+describe('お休み(データのバージョン6)', () => {
+  it('お休みの作品は、状態とお休みにした日がそのまま戻り、件数に出る', async () => {
+    const snap = snapshot();
+    snap.works.push(work('c', { status: 'paused', pausedAt: '2026-10-10T00:00:00.000Z', history: [{ row: 1, stitch: 2 }] }));
+    const r = await parseBackup(await exported(snap));
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.snapshot.works).toEqual(snap.works);
+    expect(r.summary).toMatchObject({ wip: 1, paused: 1, done: 1 });
+  });
+
+  it('バージョン5のファイル:作品に pausedAt: null が足される', async () => {
+    const file = JSON.parse(await exported(snapshot()));
+    for (const w of file.works) delete w.pausedAt;
+    const r = await parseBackup(JSON.stringify({ ...file, dataVersion: 5, settings: { ...file.settings, dataVersion: 5 } }));
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.snapshot.works).toEqual(snapshot().works);
+    expect(r.snapshot.works.every((w) => w.pausedAt === null)).toBe(true);
+  });
+
+  it('知らない状態の作品は壊れたファイル', async () => {
+    const file = JSON.parse(await exported(snapshot()));
+    file.works[0].status = 'sleeping';
+    const r = await parseBackup(JSON.stringify(file));
+    expect(r.ok ? 'ok' : r.reason).toBe(REASONS.broken('作品'));
   });
 });

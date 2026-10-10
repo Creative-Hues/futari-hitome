@@ -73,6 +73,7 @@ export function NewWork() {
       lastCountAt: null,
       startedAt: now,
       finishedAt: null,
+      pausedAt: null,
       giftedTo: null,
       interiorShape: dept === 'interior' ? shape : null,
       updatedAt: now,

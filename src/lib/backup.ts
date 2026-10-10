@@ -66,6 +66,7 @@ export async function backupParts(snap: Snapshot, exportedAt: string): Promise<s
 export interface BackupSummary {
   exportedAt: string | null;
   wip: number;
+  paused: number;
   done: number;
   photos: number;
   met: number;
@@ -103,7 +104,7 @@ function checkWork(w: unknown) {
     !isStr(w.name) ||
     !DEPT_IDS.includes(w.department) ||
     !ANIMAL_IDS.includes(w.partner) ||
-    (w.status !== 'wip' && w.status !== 'done') ||
+    !['wip', 'paused', 'done'].includes(w.status) ||
     !isObj(w.count) ||
     !isCount(w.count.row) ||
     !isCount(w.count.stitch)
@@ -217,6 +218,7 @@ async function parse(text: string): Promise<{ snapshot: Snapshot; summary: Backu
     summary: {
       exportedAt: isStr(file.exportedAt) ? file.exportedAt : null,
       wip: snapshot.works.filter((w) => w.status === 'wip').length,
+      paused: snapshot.works.filter((w) => w.status === 'paused').length,
       done: snapshot.works.filter((w) => w.status === 'done').length,
       photos: photos.length,
       met: snapshot.partners.filter((p) => p.met).length,

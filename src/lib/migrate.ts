@@ -7,7 +7,7 @@ import { defaultInteriorShape, WEAR_DEPTS } from '../data/wear';
 import type { AnimalId, PartnerData, RoomData, Work } from './db';
 import { initialDisplay, initialWearing } from './wardrobe';
 
-export const CURRENT_DATA_VERSION = 5;
+export const CURRENT_DATA_VERSION = 6;
 
 /** 音声入力で1カウントになる言葉(最初) */
 export const DEFAULT_VOICE_WORDS = ['あみ'];
@@ -83,6 +83,11 @@ export function partnerToV4(
   return { ...rest, wearing };
 }
 
+/** バージョン5の作品に、お休みにした日を足す */
+export function workToV6<T extends object>(w: T): T & { pausedAt: string | null } {
+  return { pausedAt: null, ...w };
+}
+
 /** その子の「今編んでいる作品」:編みかけのうち、最後に数えた作品 */
 export function pickKnitting(
   animal: AnimalId,
@@ -129,6 +134,10 @@ const STEPS: Record<number, (db: AnyDB) => Promise<void>> = {
   4: async (db) => {
     const settings = await db.get('settings', 'app');
     if (settings.lastExportedAt === undefined) await db.put('settings', { ...settings, lastExportedAt: null });
+  },
+  // 5 → 6:作品に「お休みにした日」を足す(今までの作品はお休みではない)
+  5: async (db) => {
+    for (const w of await db.getAll('works')) await db.put('works', workToV6(w));
   },
 };
 
