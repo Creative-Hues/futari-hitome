@@ -12,10 +12,13 @@ export function go(hash: string, replace = false) {
   else location.hash = hash;
 }
 
+/** # のあとの行き先。確認用の ?sky=… などは行き先に含めない */
+const route = () => location.hash.split('?')[0];
+
 export function useHash(): string {
-  const [hash, setHash] = useState(location.hash);
+  const [hash, setHash] = useState(route);
   useEffect(() => {
-    const onChange = () => setHash(location.hash);
+    const onChange = () => setHash(route());
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, []);

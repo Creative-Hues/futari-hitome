@@ -5,7 +5,7 @@ export interface Department {
   id: DepartmentId;
   name: string;
   examples: string[];
-  /** 担当の2匹(選ぶ仕組みはフェーズ2) */
+  /** 担当の2匹 */
   partners: [AnimalId, AnimalId];
 }
 
@@ -29,15 +29,6 @@ export const DEPARTMENTS: Department[] = [
 ];
 
 export const departmentName = (id: DepartmentId) => DEPARTMENTS.find((d) => d.id === id)?.name ?? '';
-
-export const ANIMAL_NAMES: Record<AnimalId, string> = {
-  sheep: 'ひつじ',
-  cat: 'ねこ',
-  stoat: 'オコジョ',
-  axolotl: 'ウーパールーパー',
-  seal: 'アザラシ',
-  otter: 'ラッコ',
-};
 
 /** 作品の色(先頭がメインの青) */
 export const WORK_COLORS = [

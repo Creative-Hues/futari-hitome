@@ -1,7 +1,8 @@
 // 端末内の保存(IndexedDB)。外には何も送らない。
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { ANIMALS, type DecorationId } from '../data/animals';
 import type { Count } from './counter';
-import { CURRENT_DATA_VERSION, migrate } from './migrate';
+import { CURRENT_DATA_VERSION, migrate, newPartner } from './migrate';
 
 export type DepartmentId = 'head' | 'neck' | 'body' | 'paw' | 'wear' | 'interior';
 export type AnimalId = 'sheep' | 'cat' | 'stoat' | 'axolotl' | 'seal' | 'otter';
@@ -23,6 +24,8 @@ export interface Work {
   /** 1段の目数。入れていなければ null(段だけ数える) */
   stitchesPerRow: number | null;
   count: Count;
+  /** 目標なしの作品の「今このくらい」(0〜100%) */
+  manualProgress: number;
   /** 取り消し用:操作前の状態(直近50件) */
   history: Count[];
   /** 始めた日(ISO文字列) */
@@ -37,13 +40,29 @@ export interface Settings {
   quickAdds: number[];
 }
 
+/** 動物ごとに1匹のパートナーの個体データ */
+export interface PartnerData {
+  animal: AnimalId;
+  /** 一緒に編んだことがあるか(初めて編むときに出会う) */
+  met: boolean;
+  metAt: string | null;
+  decoration: DecorationId;
+  /** 体の色・目の色・身につけている作品(フェーズ4で使う。null は素材のまま) */
+  bodyColor: string | null;
+  eyeColor: string | null;
+  wearingWorkId: string | null;
+  /** 名前(任意) */
+  name: string;
+}
+
 interface FutariDB extends DBSchema {
   works: { key: string; value: Work };
   settings: { key: string; value: Settings };
+  partners: { key: string; value: PartnerData };
 }
 
 const DB_NAME = 'futari-hitome';
-const DB_SCHEMA_VERSION = 1;
+const DB_SCHEMA_VERSION = 2;
 
 export const DEFAULT_SETTINGS: Settings = {
   key: 'app',
@@ -61,6 +80,9 @@ function db(): Promise<IDBPDatabase<FutariDB>> {
         if (oldVersion < 1) {
           database.createObjectStore('works', { keyPath: 'id' });
           database.createObjectStore('settings', { keyPath: 'key' });
+        }
+        if (oldVersion < 2) {
+          database.createObjectStore('partners', { keyPath: 'animal' });
         }
       },
     }).then(async (database) => {
@@ -99,4 +121,22 @@ export async function addWork(work: Omit<Work, 'order'>): Promise<Work> {
   const saved = { ...work, order };
   await saveWork(saved);
   return saved;
+}
+
+export async function listPartners(): Promise<Record<AnimalId, PartnerData>> {
+  const list = await (await db()).getAll('partners');
+  const map = {} as Record<AnimalId, PartnerData>;
+  for (const a of ANIMALS) map[a] = list.find((p) => p.animal === a) ?? newPartner(a);
+  return map;
+}
+
+export async function getPartner(animal: AnimalId): Promise<PartnerData> {
+  return (await (await db()).get('partners', animal)) ?? newPartner(animal);
+}
+
+/** その子と初めて編むときに「出会う」 */
+export async function meetPartner(animal: AnimalId): Promise<void> {
+  const p = await getPartner(animal);
+  if (p.met) return;
+  await (await db()).put('partners', { ...p, met: true, metAt: new Date().toISOString() });
 }

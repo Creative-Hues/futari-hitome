@@ -1,8 +1,9 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { Icon } from '../components/Icon';
 import { Partner } from '../components/Partner';
-import { ANIMAL_NAMES, DEPARTMENTS, WORK_COLORS } from '../data/departments';
-import { addWork, type DepartmentId } from '../lib/db';
+import { ANIMAL_NAMES } from '../data/animals';
+import { DEPARTMENTS, WORK_COLORS } from '../data/departments';
+import { addWork, listPartners, meetPartner, type AnimalId, type DepartmentId, type PartnerData } from '../lib/db';
 import { go, routes } from '../lib/router';
 
 /** 数字だけを取り出す(全角も半角に) */
@@ -30,22 +31,28 @@ export function NewWork() {
   const [perRow, setPerRow] = useState('');
   const [color, setColor] = useState(WORK_COLORS[0].value);
   const [saving, setSaving] = useState(false);
+  const [partner, setPartner] = useState<AnimalId | null>(null);
+  const [partners, setPartners] = useState<Record<AnimalId, PartnerData> | null>(null);
+
+  useEffect(() => {
+    listPartners().then(setPartners);
+  }, []);
 
   const department = DEPARTMENTS.find((d) => d.id === dept);
   const kind = kindChoice === CUSTOM ? customKind.trim() : (kindChoice ?? '');
   const goalRows = hasGoal ? toPositiveInt(rows) : null;
   const stitchesPerRow = toPositiveInt(perRow);
-  const partner = 'sheep'; // 部門の担当から選ぶ仕組みはフェーズ2
-  const ready = !!dept && !!kind && (!hasGoal || goalRows !== null) && !saving;
+  const ready = !!dept && !!partner && !!kind && (!hasGoal || goalRows !== null) && !saving;
 
   const selectDept = (id: DepartmentId) => {
     setDept(id);
     setKindChoice(null);
+    setPartner(null);
   };
 
   const submit = async (e: Event) => {
     e.preventDefault();
-    if (!ready || !dept) return;
+    if (!ready || !dept || !partner) return;
     setSaving(true);
     const now = new Date().toISOString();
     const work = await addWork({
@@ -59,10 +66,12 @@ export function NewWork() {
       goalRows,
       stitchesPerRow,
       count: { row: 0, stitch: 0 },
+      manualProgress: 0,
       history: [],
       startedAt: now,
       updatedAt: now,
     });
+    await meetPartner(partner);
     go(routes.knit(work.id), true);
   };
 
@@ -91,6 +100,28 @@ export function NewWork() {
             ))}
           </div>
         </fieldset>
+
+        {department && (
+          <fieldset class="field">
+            <legend>だれと編む?</legend>
+            <div class="partner-pick">
+              {department.partners.map((a) => (
+                <button
+                  type="button"
+                  class="partner-choice card"
+                  aria-pressed={partner === a}
+                  onClick={() => setPartner(a)}
+                >
+                  <span class="thumb">
+                    <Partner animal={a} decoration={partners?.[a].decoration} color={color} progress={0.5} />
+                  </span>
+                  <span class="name">{ANIMAL_NAMES[a]}</span>
+                  {partners && !partners[a].met && <span class="first">はじめまして</span>}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         {department && (
           <fieldset class="field">
@@ -196,13 +227,6 @@ export function NewWork() {
             ))}
           </div>
         </fieldset>
-
-        <div class="partner-note card">
-          <span class="thumb">
-            <Partner />
-          </span>
-          {ANIMAL_NAMES[partner]} と いっしょに編みます
-        </div>
 
         <button class="primary-button" type="submit" disabled={!ready}>
           編みはじめる

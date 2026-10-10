@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { add, progress, pushHistory, undo, unravel, type Count } from './counter';
+import { add, progress, pushHistory, snapProgress, undo, unravel, workProgress, type Count } from './counter';
 
 describe('add', () => {
   it('1段の目数が満ちると段が進む', () => {
@@ -57,5 +57,24 @@ describe('progress', () => {
     expect(progress({ row: 40, stitch: 15 }, 80, 30)).toBeCloseTo(40.5 / 80);
     expect(progress({ row: 10, stitch: 0 }, null, 30)).toBeNull();
     expect(progress({ row: 90, stitch: 0 }, 80, null)).toBe(1);
+  });
+});
+
+describe('パートナーの編み地の進み具合', () => {
+  it('目標があれば達成率(目数も含める)', () => {
+    expect(workProgress({ count: { row: 4, stitch: 5 }, goalRows: 10, stitchesPerRow: 10, manualProgress: 80 })).toBe(
+      0.45,
+    );
+  });
+  it('目標がなければ「今このくらい」', () => {
+    expect(workProgress({ count: { row: 4, stitch: 0 }, goalRows: null, stitchesPerRow: null, manualProgress: 40 })).toBe(
+      0.4,
+    );
+  });
+  it('「今このくらい」は5%きざみ、0〜100', () => {
+    expect(snapProgress(42)).toBe(40);
+    expect(snapProgress(43)).toBe(45);
+    expect(snapProgress(-3)).toBe(0);
+    expect(snapProgress(104)).toBe(100);
   });
 });

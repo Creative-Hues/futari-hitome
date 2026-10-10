@@ -53,3 +53,18 @@ export function progress(
   const done = stitchesPerRow ? count.row + count.stitch / stitchesPerRow : count.row;
   return Math.min(1, done / goalRows);
 }
+
+/** 「今このくらい」の進行度(0〜100%)を5%きざみにそろえる */
+export function snapProgress(percent: number, step = 5): number {
+  return Math.min(100, Math.max(0, Math.round(percent / step) * step));
+}
+
+/** パートナーの編み地の進み具合(0〜1)。目標があれば達成率、なければ「今このくらい」 */
+export function workProgress(w: {
+  count: Count;
+  goalRows: number | null;
+  stitchesPerRow: number | null;
+  manualProgress?: number;
+}): number {
+  return progress(w.count, w.goalRows, w.stitchesPerRow) ?? (w.manualProgress ?? 0) / 100;
+}

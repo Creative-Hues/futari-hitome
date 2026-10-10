@@ -40,4 +40,27 @@
   --press-duration: 90ms;
   --sheet-duration: 220ms; /* 下から出るシート */
   --live-blink-duration: 1.2s; /* 音声オンの点の点滅 */
+
+  /* パートナーと景色の動き。距離は絵の中の大きさ(どうぶつの絵は幅240) */
+  --breath-duration: 3.4s; /* 呼吸1回の長さ */
+  --breath-distance: 2.5px; /* 呼吸で上下する高さ */
+  --blink-interval: 5s; /* まばたきの間隔 */
+  --knit-angle: 9deg; /* 数えたときに手(編み針)が動く角度 */
+  --knit-duration: 260ms; /* 数えたときの手の動き1回の長さ */
+  --unravel-angle: 14deg; /* ほどくときに手が動く角度 */
+  --unravel-duration: 320ms; /* ほどく手の動き1回の長さ */
+  --unravel-count: 3; /* ほどく手の動きの回数 */
+  --knit-grow-duration: 450ms; /* 編み地が伸び縮みする速さ */
+  --react-duration: 750ms; /* ふれあいのしぐさの長さ */
+  --react-hop: 16px; /* ぴょんと跳ねる高さ */
+  --react-wiggle: 7deg; /* 左右にゆれる角度 */
+  --react-tilt: 12deg; /* 首をかしげる角度 */
+  --deco-sway-angle: 5deg; /* 頭飾りの揺れの角度 */
+  --deco-sway-duration: 3.2s; /* 頭飾りの揺れ1往復の長さ */
+  --flower-sway-angle: 6deg; /* 原っぱと鉢植えの花の揺れの角度 */
+  --flower-sway-duration: 3.6s; /* 花の揺れ1往復の長さ */
+  --cloud-distance: 3px; /* 雲の上下の幅 */
+  --cloud-duration: 8s; /* 雲の上下1往復の長さ */
+  --star-twinkle-duration: 4s; /* 星のまたたき1回の長さ */
+  --star-twinkle-min: 0.35; /* またたいて一番暗いときの濃さ(0〜1) */
 }

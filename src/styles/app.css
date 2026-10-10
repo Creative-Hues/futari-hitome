@@ -153,13 +153,33 @@ button {
   aspect-ratio: 1;
 }
 
-.partner > img {
-  position: absolute;
+.partner > svg {
   display: block;
+  width: 100%;
+  height: 100%;
+  /* 跳ねたり頭飾りが揺れたりしても切れないように */
+  overflow: visible;
 }
 
-.partner > .partner-body {
+.partner[role='button'] {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.partner[role='button']:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+/* 原っぱと部屋の景色 */
+.scene {
+  position: absolute;
   inset: 0;
+}
+
+.scene > svg {
+  display: block;
   width: 100%;
   height: 100%;
 }
@@ -186,13 +206,6 @@ button {
   border-radius: var(--radius-panel);
   overflow: hidden;
   box-shadow: var(--shadow-panel);
-}
-
-.room > .room-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
 }
 
 .room > .partner {
@@ -388,28 +401,51 @@ button {
   box-shadow: 0 0 0 3px var(--line);
 }
 
-.partner-note {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 14px 8px 8px;
-  font-size: 13px;
-  color: var(--text-sub);
+.partner-pick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.partner-note .thumb {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+.partner-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 12px;
+  border: 0;
+  color: var(--text);
+}
+
+.partner-choice[aria-pressed='true'] {
+  box-shadow: 0 0 0 3px var(--blue);
+}
+
+.partner-choice .thumb {
+  width: 88px;
+  height: 88px;
+  border-radius: 18px;
   background: var(--partner-bg);
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.partner-note .partner {
-  width: 48px;
+.partner-choice .thumb .partner {
+  width: 82px;
+}
+
+.partner-choice .name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.partner-choice .first {
+  font-size: 11px;
+  color: var(--pink-text);
+  background: var(--pink-soft);
+  border-radius: 10px;
+  padding: 1px 8px;
 }
 
 /* ---------- 編む画面 ---------- */
@@ -439,15 +475,6 @@ button {
   border-radius: var(--radius-panel);
   overflow: hidden;
   box-shadow: var(--shadow-panel);
-}
-
-.meadow > .meadow-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center bottom;
 }
 
 .meadow > .partner {
@@ -754,7 +781,303 @@ button {
   }
 }
 
+/* 目標なしの「今このくらい」。見た目のバーは細く、触れられる高さは44px */
+.progress-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-pick .hit {
+  flex: 1;
+  height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.progress-pick .bar {
+  flex: 1;
+}
+
+.progress-pick .label {
+  font-size: 13px;
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+
+/* ---------- パートナーと景色の動き(速さ・幅は tokens.css の「動き」) ---------- */
+
+/* 回転の中心(どうぶつの絵の中の座標。assets/README.md) */
+.pt-hand-l {
+  transform-origin: 102px 150px;
+}
+.pt-hand-r {
+  transform-origin: 138px 150px;
+}
+.pt-react {
+  transform-origin: 120px 214px;
+}
+.pt-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.pt-deco {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+/* 編み地の伸び縮み */
+.partner[data-ready] .pt-knit {
+  transition: height var(--knit-grow-duration) ease-out;
+}
+
+/* 呼吸・まばたき・頭飾りの揺れ */
+.partner[data-live] .pt-breath {
+  animation: pt-breath var(--breath-duration) ease-in-out infinite;
+}
+.partner[data-live] .pt-eye {
+  animation: pt-blink var(--blink-interval) linear infinite;
+}
+.partner[data-live] .pt-deco {
+  animation: deco-sway var(--deco-sway-duration) ease-in-out infinite;
+}
+
+@keyframes pt-breath {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(var(--breath-distance));
+  }
+}
+
+@keyframes pt-blink {
+  0%,
+  93%,
+  99%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes deco-sway {
+  0%,
+  100% {
+    transform: rotate(calc(-1 * var(--deco-sway-angle)));
+  }
+  50% {
+    transform: rotate(var(--deco-sway-angle));
+  }
+}
+
+/* 編む動き。a と b は同じ動き(名前を替えることで、すばやく続けて数えても毎回始まり直す) */
+.partner[data-move='knit-a'] .pt-hand-l {
+  animation: knit-l-a var(--knit-duration) ease-in-out;
+}
+.partner[data-move='knit-b'] .pt-hand-l {
+  animation: knit-l-b var(--knit-duration) ease-in-out;
+}
+.partner[data-move='knit-a'] .pt-hand-r {
+  animation: knit-r-a var(--knit-duration) ease-in-out;
+}
+.partner[data-move='knit-b'] .pt-hand-r {
+  animation: knit-r-b var(--knit-duration) ease-in-out;
+}
+
+@keyframes knit-l-a {
+  40% {
+    transform: rotate(calc(-1 * var(--knit-angle)));
+  }
+}
+@keyframes knit-l-b {
+  40% {
+    transform: rotate(calc(-1 * var(--knit-angle)));
+  }
+}
+@keyframes knit-r-a {
+  60% {
+    transform: rotate(var(--knit-angle));
+  }
+}
+@keyframes knit-r-b {
+  60% {
+    transform: rotate(var(--knit-angle));
+  }
+}
+
+/* ほどく動き(編む動きと逆向きに、数回) */
+.partner[data-move='unravel-a'] .pt-hand-l {
+  animation: unravel-l-a var(--unravel-duration) ease-in-out var(--unravel-count);
+}
+.partner[data-move='unravel-b'] .pt-hand-l {
+  animation: unravel-l-b var(--unravel-duration) ease-in-out var(--unravel-count);
+}
+.partner[data-move='unravel-a'] .pt-hand-r {
+  animation: unravel-r-a var(--unravel-duration) ease-in-out var(--unravel-count);
+}
+.partner[data-move='unravel-b'] .pt-hand-r {
+  animation: unravel-r-b var(--unravel-duration) ease-in-out var(--unravel-count);
+}
+
+@keyframes unravel-l-a {
+  50% {
+    transform: rotate(var(--unravel-angle));
+  }
+}
+@keyframes unravel-l-b {
+  50% {
+    transform: rotate(var(--unravel-angle));
+  }
+}
+@keyframes unravel-r-a {
+  50% {
+    transform: rotate(calc(-1 * var(--unravel-angle)));
+  }
+}
+@keyframes unravel-r-b {
+  50% {
+    transform: rotate(calc(-1 * var(--unravel-angle)));
+  }
+}
+
+/* ふれあいのしぐさ */
+.partner[data-react^='hop'] .pt-react {
+  animation: react-hop var(--react-duration) ease-out;
+}
+.partner[data-react^='wiggle'] .pt-react {
+  animation: react-wiggle var(--react-duration) ease-in-out;
+}
+.partner[data-react^='tilt'] .pt-react {
+  animation: react-tilt var(--react-duration) ease-in-out;
+}
+.partner[data-react^='blink'] .pt-eye {
+  animation: react-blink var(--react-duration) ease-in-out;
+}
+
+@keyframes react-hop {
+  0%,
+  55%,
+  100% {
+    transform: translateY(0);
+  }
+  28% {
+    transform: translateY(calc(-1 * var(--react-hop)));
+  }
+  72% {
+    transform: translateY(calc(-0.3 * var(--react-hop)));
+  }
+}
+
+@keyframes react-wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(calc(-1 * var(--react-wiggle)));
+  }
+  45% {
+    transform: rotate(var(--react-wiggle));
+  }
+  70% {
+    transform: rotate(calc(-0.5 * var(--react-wiggle)));
+  }
+}
+
+@keyframes react-tilt {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30%,
+  70% {
+    transform: rotate(var(--react-tilt));
+  }
+}
+
+@keyframes react-blink {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  25%,
+  65% {
+    transform: scaleY(0.12);
+  }
+}
+
+/* 景色:雲の上下・花の揺れ・夜の星と暗さ */
+.sc-cloud {
+  animation: cloud-bob var(--cloud-duration) ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -2.7s);
+}
+.sc-sway {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: flower-sway var(--flower-sway-duration) ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.8s);
+}
+.sc-dim {
+  opacity: var(--scene-dim, 0);
+  pointer-events: none;
+}
+.sc-stars {
+  display: none;
+}
+.scene[data-stars] .sc-stars {
+  display: inline;
+}
+.sc-stars circle {
+  animation: star-twinkle var(--star-twinkle-duration) ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -1.3s);
+}
+
+@keyframes cloud-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(var(--cloud-distance));
+  }
+}
+
+@keyframes flower-sway {
+  0%,
+  100% {
+    transform: rotate(calc(-1 * var(--flower-sway-angle)));
+  }
+  50% {
+    transform: rotate(var(--flower-sway-angle));
+  }
+}
+
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: var(--star-twinkle-min);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  /* 「視差効果を減らす」がオンのときは、ずっと続く動きを止める(数えたときの動きは残す) */
+  .partner[data-live] .pt-breath,
+  .partner[data-live] .pt-eye,
+  .partner[data-live] .pt-deco,
+  .sc-cloud,
+  .sc-sway,
+  .sc-stars circle {
+    animation: none;
+  }
   .pop,
   .sheet,
   .sheet-backdrop {

@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import meadowUrl from '../../assets/backgrounds/meadow.svg';
 import { Icon } from '../components/Icon';
-import { Partner } from '../components/Partner';
+import { Partner, type PartnerMotion } from '../components/Partner';
+import { Scene } from '../components/Scene';
 import { Sheet } from '../components/Sheet';
-import { add, progress, pushHistory, undo, unravel, type Count } from '../lib/counter';
-import { getSettings, getWork, saveSettings, saveWork, type Settings, type Work } from '../lib/db';
+import { add, progress, pushHistory, snapProgress, undo, unravel, workProgress, type Count } from '../lib/counter';
+import {
+  getPartner,
+  getSettings,
+  getWork,
+  saveSettings,
+  saveWork,
+  type PartnerData,
+  type Settings,
+  type Work,
+} from '../lib/db';
 import { routes } from '../lib/router';
 import { TapGuard } from '../lib/tapGuard';
 import { VoiceSession, type VoiceStatus } from '../lib/voice';
@@ -17,6 +26,9 @@ export function Knit({ id }: { id: string }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [missing, setMissing] = useState(false);
   const [sheet, setSheet] = useState<'plus' | 'unravel' | null>(null);
+  const [partner, setPartner] = useState<PartnerData | null>(null);
+  const [motion, setMotion] = useState<PartnerMotion | null>(null);
+  const motionCount = useRef(0);
   const workRef = useRef<Work | null>(null);
   const wakeLock = useWakeLock();
   useVoiceAutoOff();
@@ -26,16 +38,20 @@ export function Knit({ id }: { id: string }) {
       if (!w) return setMissing(true);
       workRef.current = w;
       setWork(w);
+      getPartner(w.partner).then(setPartner);
     });
     getSettings().then(setSettings);
   }, [id]);
 
-  /** 数を変えて保存する(取り消し用に、変える前の状態を残す) */
-  const change = (next: (c: Count, w: Work) => Count) => {
+  /** パートナーに編む・ほどくの動きをさせる(数え方には関わらない) */
+  const move = (kind: PartnerMotion['kind']) => setMotion({ kind, n: ++motionCount.current });
+
+  /** 数を変えて保存する(取り消し用に、変える前の状態を残す)。変わったら true */
+  const change = (next: (c: Count, w: Work) => Count): boolean => {
     const w = workRef.current;
-    if (!w) return;
+    if (!w) return false;
     const count = next(w.count, w);
-    if (count.row === w.count.row && count.stitch === w.count.stitch) return;
+    if (count.row === w.count.row && count.stitch === w.count.stitch) return false;
     const updated: Work = {
       ...w,
       count,
@@ -45,9 +61,22 @@ export function Knit({ id }: { id: string }) {
     workRef.current = updated;
     setWork(updated);
     saveWork(updated);
+    return true;
   };
 
-  const countUp = (n: number) => change((c, w) => add(c, n, w.stitchesPerRow));
+  const countUp = (n: number) => {
+    if (change((c, w) => add(c, n, w.stitchesPerRow))) move('knit');
+  };
+
+  /** 目標なしの作品の「今このくらい」。数とは別なので取り消しの対象にはしない */
+  const setManual = (percent: number, save: boolean) => {
+    const w = workRef.current;
+    if (!w) return;
+    const updated: Work = { ...w, manualProgress: percent, updatedAt: save ? new Date().toISOString() : w.updatedAt };
+    workRef.current = updated;
+    setWork(updated);
+    if (save) saveWork(updated);
+  };
 
   const undoLast = () => {
     const w = workRef.current;
@@ -89,11 +118,22 @@ export function Knit({ id }: { id: string }) {
       </div>
 
       <section class="meadow" aria-label="パートナー">
-        <img class="meadow-bg" src={meadowUrl} alt="" draggable={false} />
-        <Partner label="ひつじ" />
+        <Scene kind="meadow" />
+        <Partner
+          animal={work.partner}
+          decoration={partner?.decoration}
+          color={work.color}
+          progress={workProgress(work)}
+          motion={motion}
+          live
+          interactive
+        />
       </section>
 
       <div class="stats">
+        {p === null && (
+          <ProgressPicker value={work.manualProgress} color={work.color} onChange={setManual} />
+        )}
         {p !== null && (
           <div class="bar" role="progressbar" aria-valuenow={Math.round(p * 100)} aria-valuemin={0} aria-valuemax={100}>
             <span style={{ width: `${p * 100}%`, background: work.color }} />
@@ -148,7 +188,7 @@ export function Knit({ id }: { id: string }) {
         <UnravelSheet
           hasStitches={!!perRow}
           onUnravel={(u, n) => {
-            change((c, w) => unravel(c, u, n, w.stitchesPerRow));
+            if (change((c, w) => unravel(c, u, n, w.stitchesPerRow))) move('unravel');
             setSheet(null);
           }}
           onClose={() => setSheet(null)}
@@ -366,6 +406,66 @@ function TapZone({
         </span>
       ))}
       <VoicePanel />
+    </div>
+  );
+}
+
+// ---------- 目標なしの「今このくらい」 ----------
+
+function ProgressPicker({
+  value,
+  color,
+  onChange,
+}: {
+  value: number;
+  color: string;
+  /** save が false の間は指でなぞっている途中(離したときに保存する) */
+  onChange: (percent: number, save: boolean) => void;
+}) {
+  const dragging = useRef(false);
+  const at = (e: PointerEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    return snapProgress(((e.clientX - rect.left) / rect.width) * 100);
+  };
+
+  return (
+    <div class="progress-pick">
+      <div
+        class="hit"
+        role="slider"
+        tabIndex={0}
+        aria-label="今このくらい"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={value}
+        aria-valuetext={`だいたい ${value}%`}
+        onPointerDown={(e) => {
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          dragging.current = true;
+          onChange(at(e), false);
+        }}
+        onPointerMove={(e) => dragging.current && onChange(at(e), false)}
+        onPointerUp={(e) => {
+          if (!dragging.current) return;
+          dragging.current = false;
+          onChange(at(e), true);
+        }}
+        onPointerCancel={() => {
+          dragging.current = false;
+          onChange(value, true);
+        }}
+        onKeyDown={(e) => {
+          const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 5 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -5 : 0;
+          if (!d) return;
+          e.preventDefault();
+          onChange(snapProgress(value + d), true);
+        }}
+      >
+        <span class="bar">
+          <span style={{ width: `${value}%`, background: color }} />
+        </span>
+      </div>
+      <span class="label">だいたい {value}%</span>
     </div>
   );
 }

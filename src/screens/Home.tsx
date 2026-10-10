@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'preact/hooks';
-import roomUrl from '../../assets/backgrounds/room_example_0.svg';
 import { Partner } from '../components/Partner';
-import { ANIMAL_NAMES, departmentName } from '../data/departments';
-import { progress } from '../lib/counter';
-import { listWorks, type Work } from '../lib/db';
+import { Scene } from '../components/Scene';
+import { ANIMAL_NAMES } from '../data/animals';
+import { departmentName } from '../data/departments';
+import { workProgress } from '../lib/counter';
+import { listPartners, listWorks, type AnimalId, type PartnerData, type Work } from '../lib/db';
 import { go, routes } from '../lib/router';
 
 export function Home() {
   const [works, setWorks] = useState<Work[] | null>(null);
+  const [partners, setPartners] = useState<Record<AnimalId, PartnerData> | null>(null);
 
   useEffect(() => {
-    listWorks().then((all) => setWorks(all.filter((w) => w.status === 'wip')));
+    listWorks().then(setWorks);
+    listPartners().then(setPartners);
   }, []);
+
+  const wip = works?.filter((w) => w.status === 'wip');
+  // 部屋にいるのは最後に編んだ子(いちばん最近数えた作品の子)
+  const last = works?.reduce<Work | null>((a, w) => (!a || w.updatedAt > a.updatedAt ? w : a), null);
+  const animal = last?.partner ?? 'sheep';
 
   return (
     <main class="screen">
@@ -20,8 +28,17 @@ export function Home() {
       </header>
 
       <section class="room" aria-label="パートナーの部屋">
-        <img class="room-bg" src={roomUrl} alt="" draggable={false} />
-        <Partner label="ひつじ" />
+        <Scene kind="room" />
+        {works && partners && (
+          <Partner
+            animal={animal}
+            decoration={partners[animal].decoration}
+            color={last?.color}
+            progress={last ? workProgress(last) : 0}
+            live
+            interactive
+          />
+        )}
         <p class="bubble">
           きょうも
           <br />
@@ -33,8 +50,8 @@ export function Home() {
 
       <section class="wip" aria-labelledby="wip-title">
         <h2 id="wip-title">編みかけの作品</h2>
-        {works && works.length === 0 && <p class="wip-empty">まだありません。下のボタンから始めましょう</p>}
-        {works?.map((w) => <WorkCard key={w.id} work={w} />)}
+        {wip && wip.length === 0 && <p class="wip-empty">まだありません。下のボタンから始めましょう</p>}
+        {wip?.map((w) => <WorkCard key={w.id} work={w} partner={partners?.[w.partner]} />)}
         <button class="primary-button" onClick={() => go(routes.newWork())}>
           ＋ 新しく編む
         </button>
@@ -43,23 +60,21 @@ export function Home() {
   );
 }
 
-function WorkCard({ work }: { work: Work }) {
-  const p = progress(work.count, work.goalRows, work.stitchesPerRow);
+function WorkCard({ work, partner }: { work: Work; partner?: PartnerData }) {
+  const p = workProgress(work);
   return (
     <a class="work-card card" href={routes.knit(work.id)}>
       <span class="thumb">
-        <Partner />
+        <Partner animal={work.partner} decoration={partner?.decoration} color={work.color} progress={p} />
       </span>
       <span class="info">
         <span class="name">{work.name}</span>
         <span class="sub">
           {departmentName(work.department)} ・ {ANIMAL_NAMES[work.partner]} と 編んでいる
         </span>
-        {p !== null && (
-          <span class="bar">
-            <span style={{ width: `${p * 100}%`, background: work.color }} />
-          </span>
-        )}
+        <span class="bar">
+          <span style={{ width: `${p * 100}%`, background: work.color }} />
+        </span>
       </span>
       <span class="amount">
         {work.goalRows ? `${work.count.row}/${work.goalRows}段` : `${work.count.row}段`}
