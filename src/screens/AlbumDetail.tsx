@@ -5,14 +5,14 @@ import { Partner } from '../components/Partner';
 import { PhotoList } from '../components/PhotoList';
 import { RecordFacts } from '../components/RecordFacts';
 import { ConfirmSheet } from '../components/Sheet';
-import { ANIMAL_NAMES } from '../data/animals';
-import { getPartner, getWork, listPhotos, reopenWork, type PartnerData, type Photo, type Work } from '../lib/db';
+import { getWork, listPhotos, reopenWork, type Photo, type Work } from '../lib/db';
+import { useLooks } from '../lib/looks';
 import { go, routes } from '../lib/router';
 import { Missing } from './Record';
 
 export function AlbumDetail({ id }: { id: string }) {
   const [work, setWork] = useState<Work | null>(null);
-  const [partner, setPartner] = useState<PartnerData | null>(null);
+  const looks = useLooks();
   const [missing, setMissing] = useState(false);
   const [finished, setFinished] = useState<Photo[] | null>(null);
   const [patterns, setPatterns] = useState<Photo[] | null>(null);
@@ -23,7 +23,6 @@ export function AlbumDetail({ id }: { id: string }) {
       if (!w) return setMissing(true);
       if (w.status !== 'done') return go(routes.knit(w.id), true);
       setWork(w);
-      getPartner(w.giftedTo ?? w.partner).then(setPartner);
       listPhotos(w.id, 'finished').then(setFinished);
       listPhotos(w.id, 'pattern').then(setPatterns);
     });
@@ -38,6 +37,7 @@ export function AlbumDetail({ id }: { id: string }) {
   if (missing) return <Missing />;
   if (!work) return <main class="screen" />;
   const animal = work.giftedTo ?? work.partner;
+  const name = looks?.name(animal) ?? '';
   const memo = [
     ['使った毛糸', work.memo.yarn],
     ['針の号数', work.memo.needle],
@@ -57,11 +57,18 @@ export function AlbumDetail({ id }: { id: string }) {
         {/* 完成写真がなければ、パートナーが作品を持っている絵 */}
         {finished?.length === 0 && (
           <div class="album-hero card">
-            <Partner animal={animal} decoration={partner?.decoration} color={work.color} progress={1} live />
+            {looks && (
+              <Partner animal={animal} look={looks.look(animal)} name={name} color={work.color} progress={1} live />
+            )}
           </div>
         )}
         <PhotoList workId={work.id} kind="finished" editable={false} />
-        <p class="gift-line">{ANIMAL_NAMES[animal]}が もらってくれました</p>
+        <p class="gift-line">
+          {name}が もらってくれました
+          <a class="gift-link" href={routes.partner(animal)}>
+            {work.department === 'interior' ? '部屋に飾る' : '身につける'}
+          </a>
+        </p>
 
         {work.impression.trim() && (
           <section class="field">
@@ -105,7 +112,7 @@ export function AlbumDetail({ id }: { id: string }) {
       {confirm && (
         <ConfirmSheet
           title="編みかけに戻しますか?"
-          message={`完成した日と、${ANIMAL_NAMES[animal]}がもらった記録を消して、編みかけの作品に戻します。写真と感想は残ります`}
+          message={`完成した日と、${name}がもらった記録を消して、編みかけの作品に戻します。${work.department === 'interior' ? '部屋に飾っていれば、はずします。' : '身につけていれば、外します。'}写真と感想は残ります`}
           ok="編みかけに戻す"
           onOk={reopen}
           onClose={() => setConfirm(false)}

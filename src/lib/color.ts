@@ -40,3 +40,25 @@ export function darken(hex: string, points: number): string {
   const [h, s, l] = rgbToHsl(hexToRgb(hex));
   return hslToHex([h, s, Math.max(0, l - points)]);
 }
+
+const toHex = (rgb: number[]) =>
+  `#${rgb.map((x) => Math.round(Math.min(255, Math.max(0, x))).toString(16).padStart(2, '0')).join('')}`;
+
+/** 赤・緑・青をそれぞれ ratio 倍にした色(0.85 なら約15%暗く)。素材の影の色と同じ作り方 */
+export function shade(hex: string, ratio: number): string {
+  return toHex(hexToRgb(hex).map((x) => x * ratio));
+}
+
+/** a と b を混ぜた色(t=0 で a、t=1 で b) */
+export function mix(a: string, b: string, t: number): string {
+  const ca = hexToRgb(a);
+  const cb = hexToRgb(b);
+  return toHex(ca.map((x, i) => x + (cb[i] - x) * t));
+}
+
+/** #rgb・大文字を #rrggbb の小文字にそろえる。色でなければ null */
+export function normalizeHex(s: string): string | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s.trim());
+  if (!m) return null;
+  return toHex(hexToRgb(m[1]));
+}

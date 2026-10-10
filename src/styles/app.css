@@ -1107,7 +1107,7 @@ button {
   max-width: 480px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   background: var(--card);
   border-top: 1px solid var(--divider);
   padding: 6px 12px calc(env(safe-area-inset-bottom) + 10px);
@@ -1801,4 +1801,488 @@ textarea {
   .celebration {
     animation-duration: 1ms;
   }
+}
+
+/* ---------- フェーズ4:なかま・パートナーの画面・模様替え ---------- */
+
+/* 頭飾りが絵の上の端からはみ出すとき(ひつじの帽子)は、枠のある場所で絵を少し縮めて切れないようにする */
+.thumb .partner[data-tall] > svg,
+.pic .partner[data-tall] > svg,
+.partner-hero .partner[data-tall] > svg,
+.album-card .cover .partner[data-tall] > svg,
+.album-hero .partner[data-tall] > svg {
+  transform: scale(var(--tall-scale));
+  transform-origin: 50% 100%;
+}
+
+.gift-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blue-dark);
+}
+
+.gift .gift-link {
+  margin-left: 0;
+}
+
+.partner-choice .nickname {
+  font-size: 11px;
+  color: var(--text-sub);
+  margin-top: -4px;
+}
+
+/* なかま(Partners.mock.html) */
+.friends-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.friend-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px 12px;
+  border-radius: 20px;
+  color: var(--text);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.friend-card .pic {
+  width: 100%;
+  max-width: 132px;
+  aspect-ratio: 1;
+  background: var(--partner-bg);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.friend-card .pic .partner {
+  width: 100%;
+}
+
+.friend-card .name {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-card .sub {
+  font-size: 11px;
+  color: var(--text-sub);
+  text-align: center;
+}
+
+.friend-card .unmet {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-faint);
+  background: var(--segment-bg);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+[data-unmet] .partner {
+  opacity: var(--unmet-opacity);
+  filter: saturate(0.4);
+}
+
+/* パートナーの画面 */
+.partner-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 16px 0 8px;
+}
+
+.partner-hero {
+  background: var(--partner-bg);
+  border-radius: var(--radius-panel);
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 4px;
+}
+
+.partner-hero .partner {
+  width: 62%;
+}
+
+.unmet-note {
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-sub);
+}
+
+.deco-group,
+.wear-dept {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.deco-group-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+
+.deco-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 8px;
+}
+
+.deco-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px 6px;
+  border: 0;
+  color: var(--text);
+  min-height: var(--tap-min);
+}
+
+.deco-choice[aria-pressed='true'],
+.wear-choice[aria-pressed='true'],
+.shape-choice[aria-pressed='true'],
+.palette[aria-pressed='true'] {
+  box-shadow: 0 0 0 3px var(--blue);
+}
+
+.deco-pic {
+  width: 44px;
+  height: 44px;
+}
+
+.deco-pic > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.deco-choice .name {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* 色の丸:「もとの色」と「自由に選ぶ」 */
+.color-swatch.original {
+  position: relative;
+}
+
+.color-swatch.original::after {
+  content: '\3082\3068'; /* もと */
+  white-space: nowrap;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 8px;
+  padding: 0 3px;
+}
+
+.color-swatch.free {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: conic-gradient(#f2a6b4, #f6c94a, #8fc79a, #5aa3df, #a99ad6, #f2a6b4);
+  cursor: pointer;
+}
+
+.color-swatch.free[data-on] {
+  box-shadow: 0 0 0 3px var(--line);
+}
+
+.color-swatch.free .free-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 8px;
+  padding: 0 4px;
+  pointer-events: none;
+}
+
+.color-swatch.free input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* 身につける・一緒に編んだ作品 */
+.wear-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wear-choice,
+.together {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 14px;
+  border: 0;
+  color: var(--text);
+  text-decoration: none;
+  text-align: left;
+}
+
+.wear-choice .dot,
+.together .dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  flex-shrink: 0;
+}
+
+.wear-choice .dot.none {
+  border-style: dashed;
+  border-color: var(--dashed);
+}
+
+.wear-choice .name,
+.together .name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wear-choice .sub,
+.together .sub {
+  font-size: 12px;
+  color: var(--text-sub);
+  flex-shrink: 0;
+}
+
+/* 部屋に飾る作品 */
+.interior-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.interior-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 6px;
+}
+
+.interior-row .interior-thumb {
+  width: 64px;
+  height: 52px;
+  background: var(--segment-bg);
+  border-radius: 12px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.interior-row .name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.interior-row .name .sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-sub);
+}
+
+.interior-row .secondary-button.small {
+  padding: 0 14px;
+  height: var(--tap-min);
+  flex-shrink: 0;
+}
+
+.interior-thumb {
+  display: block;
+}
+
+.interior-thumb > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.shape-pick {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.shape-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 0;
+  color: var(--text);
+}
+
+.shape-choice .interior-thumb {
+  width: 100%;
+  max-width: 88px;
+  aspect-ratio: 72 / 58;
+}
+
+.shape-choice .name {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* 設定 */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0 8px;
+}
+
+.settings-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  min-height: 64px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.settings-link .title {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.settings-link .sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.settings-link > svg {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.chip.static {
+  display: inline-flex;
+  align-items: center;
+  box-shadow: 0 0 0 2px var(--divider);
+}
+
+.word-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.word-add .text-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 部屋の模様替え:部屋の絵は上に止めておく */
+.room-preview-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 8px calc(-1 * var(--gutter)) 0;
+  padding: calc(env(safe-area-inset-top) + 6px) var(--gutter) 10px;
+  background: var(--bg);
+}
+
+.room-preview {
+  width: 72%;
+  margin: 0 auto;
+}
+
+.room-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 10px 0 8px;
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 0;
+  color: var(--text);
+  min-height: var(--tap-min);
+}
+
+.palette-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.palette-dots > span {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+}
+
+.palette .name {
+  font-size: 13px;
+  font-weight: 700;
 }

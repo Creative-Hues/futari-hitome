@@ -1,0 +1,141 @@
+{
+ "viewBox": "0 0 240 240",
+ "colors": {
+  "--item": "作品の色",
+  "--item-shade": "作品の色を約15%暗くした色(編み目の線・ゴム編みの線)"
+ },
+ "worn": {
+  "head_sheep": {
+   "file": "head_sheep.svg",
+   "department": "頭",
+   "animal": "sheep",
+   "layers": [
+    "body"
+   ],
+   "decorationAnchorY": 35
+  },
+  "head_seal": {
+   "file": "head_seal.svg",
+   "department": "頭",
+   "animal": "seal",
+   "layers": [
+    "body"
+   ],
+   "decorationAnchorY": 46
+  },
+  "neck_stoat": {
+   "file": "neck_stoat.svg",
+   "department": "首",
+   "animal": "stoat",
+   "layers": [
+    "body"
+   ]
+  },
+  "neck_cat": {
+   "file": "neck_cat.svg",
+   "department": "首",
+   "animal": "cat",
+   "layers": [
+    "body"
+   ]
+  },
+  "body_seal": {
+   "file": "body_seal.svg",
+   "department": "胴体",
+   "animal": "seal",
+   "layers": [
+    "body"
+   ]
+  },
+  "body_axolotl": {
+   "file": "body_axolotl.svg",
+   "department": "胴体",
+   "animal": "axolotl",
+   "layers": [
+    "body"
+   ]
+  },
+  "paws_otter": {
+   "file": "paws_otter.svg",
+   "department": "前足",
+   "animal": "otter",
+   "layers": [
+    "hand-left",
+    "hand-right"
+   ]
+  },
+  "paws_cat": {
+   "file": "paws_cat.svg",
+   "department": "前足",
+   "animal": "cat",
+   "layers": [
+    "hand-left",
+    "hand-right"
+   ]
+  },
+  "feet_stoat": {
+   "file": "feet_stoat.svg",
+   "department": "その他・身につけるもの",
+   "animal": "stoat",
+   "layers": [
+    "body"
+   ]
+  },
+  "feet_otter": {
+   "file": "feet_otter.svg",
+   "department": "その他・身につけるもの",
+   "animal": "otter",
+   "layers": [
+    "body"
+   ]
+  }
+ },
+ "interior": {
+  "viewBox": "-36 -52 72 58",
+  "origin": "(0,0)が床に触れる下の真ん中",
+  "shapes": {
+   "cushion": {
+    "file": "interior_cushion.svg",
+    "name": "クッション"
+   },
+   "blanket": {
+    "file": "interior_blanket.svg",
+    "name": "ブランケット"
+   },
+   "amigurumi": {
+    "file": "interior_amigurumi.svg",
+    "name": "あみぐるみ"
+   }
+  },
+  "defaultShapeByKind": {
+   "クッション": "cushion",
+   "ブランケット": "blanket",
+   "あみぐるみ": "amigurumi",
+   "*": "cushion"
+  },
+  "roomSpots": [
+   {
+    "name": "floor-right",
+    "x": 305,
+    "y": 304,
+    "scale": 1.0,
+    "note": "床の右"
+   },
+   {
+    "name": "floor-left",
+    "x": 124,
+    "y": 320,
+    "scale": 0.85,
+    "note": "ラグの左手前"
+   },
+   {
+    "name": "sill",
+    "x": 120,
+    "y": 135,
+    "scale": 0.6,
+    "note": "窓辺(小さめ)"
+   }
+  ],
+  "roomSpotsNote": "部屋(room_template.svg, viewBox 0 0 350 330)の座標。translate(x y) scale(scale) で置く。最大3つ"
+ }
+}

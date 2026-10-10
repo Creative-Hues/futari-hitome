@@ -1,17 +1,12 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import { Icon } from '../components/Icon';
+import { InteriorShapePicker } from '../components/InteriorShapePicker';
 import { Partner } from '../components/Partner';
 import { ANIMAL_NAMES } from '../data/animals';
 import { DEPARTMENTS, WORK_COLORS } from '../data/departments';
-import {
-  addWork,
-  listPartners,
-  meetPartner,
-  newId,
-  type AnimalId,
-  type DepartmentId,
-  type PartnerData,
-} from '../lib/db';
+import { defaultInteriorShape, type InteriorShape } from '../data/wear';
+import { addWork, meetPartner, newId, type AnimalId, type DepartmentId } from '../lib/db';
+import { useLooks } from '../lib/looks';
 import { go, routes } from '../lib/router';
 
 /** 数字だけを取り出す(全角も半角に) */
@@ -34,22 +29,23 @@ export function NewWork() {
   const [color, setColor] = useState(WORK_COLORS[0].value);
   const [saving, setSaving] = useState(false);
   const [partner, setPartner] = useState<AnimalId | null>(null);
-  const [partners, setPartners] = useState<Record<AnimalId, PartnerData> | null>(null);
-
-  useEffect(() => {
-    listPartners().then(setPartners);
-  }, []);
+  /** 部屋に飾るときの絵。自分で選ぶまでは種類名に合わせる */
+  const [pickedShape, setPickedShape] = useState<InteriorShape | null>(null);
+  const looks = useLooks();
+  const partners = looks?.partners;
 
   const department = DEPARTMENTS.find((d) => d.id === dept);
   const kind = kindChoice === CUSTOM ? customKind.trim() : (kindChoice ?? '');
   const goalRows = hasGoal ? toPositiveInt(rows) : null;
   const stitchesPerRow = toPositiveInt(perRow);
+  const shape = pickedShape ?? defaultInteriorShape(kind);
   const ready = !!dept && !!partner && !!kind && (!hasGoal || goalRows !== null) && !saving;
 
   const selectDept = (id: DepartmentId) => {
     setDept(id);
     setKindChoice(null);
     setPartner(null);
+    setPickedShape(null);
   };
 
   const submit = async (e: Event) => {
@@ -78,6 +74,7 @@ export function NewWork() {
       startedAt: now,
       finishedAt: null,
       giftedTo: null,
+      interiorShape: dept === 'interior' ? shape : null,
       updatedAt: now,
     });
     await meetPartner(partner);
@@ -122,9 +119,10 @@ export function NewWork() {
                   onClick={() => setPartner(a)}
                 >
                   <span class="thumb">
-                    <Partner animal={a} decoration={partners?.[a].decoration} color={color} progress={0.5} />
+                    {looks && <Partner animal={a} look={looks.look(a)} name={looks.name(a)} color={color} progress={0.5} />}
                   </span>
                   <span class="name">{ANIMAL_NAMES[a]}</span>
+                  {partners?.[a].name.trim() && <span class="nickname">{partners[a].name.trim()}</span>}
                   {partners && !partners[a].met && <span class="first">はじめまして</span>}
                 </button>
               ))}
@@ -165,6 +163,14 @@ export function NewWork() {
                 onInput={(e) => setCustomKind(e.currentTarget.value)}
               />
             )}
+          </fieldset>
+        )}
+
+        {dept === 'interior' && (
+          <fieldset class="field">
+            <legend>部屋に飾るときの絵</legend>
+            <InteriorShapePicker value={shape} color={color} onChange={setPickedShape} />
+            <p class="field-note">完成したら、ホームの部屋に飾れます。あとから選び直せます</p>
           </fieldset>
         )}
 

@@ -1,8 +1,8 @@
 // 完成のお祝い。編む画面の上に重ねる(下のタップ場所は隠れるので数えない)。
 // 動きはすべて CSS(速さ・高さ・回数・紙吹雪の数は tokens.css の「動き」の欄)。
 import { useMemo } from 'preact/hooks';
-import { ANIMAL_NAMES } from '../data/animals';
-import type { PartnerData, Work } from '../lib/db';
+import type { Work } from '../lib/db';
+import { useLooks } from '../lib/looks';
 import { Partner } from './Partner';
 import { Scene } from './Scene';
 
@@ -23,17 +23,17 @@ function confetti(color: string) {
 
 export function Celebration({
   work,
-  partner,
   onRecord,
   onLater,
 }: {
   work: Work;
-  partner: PartnerData | null;
   onRecord: () => void;
   onLater: () => void;
 }) {
   const dots = useMemo(() => confetti(work.color), [work.color]);
-  const name = ANIMAL_NAMES[work.partner];
+  // 完成したあとの見た目(もらった作品を身につけていれば、その姿でお祝いする)
+  const looks = useLooks();
+  const name = looks?.name(work.partner) ?? '';
 
   return (
     <div class="celebration" role="dialog" aria-modal="true" aria-label="完成おめでとう">
@@ -44,14 +44,17 @@ export function Celebration({
             <span style={style} />
           ))}
         </div>
-        <Partner
-          animal={work.partner}
-          decoration={partner?.decoration}
-          color={work.color}
-          progress={1}
-          live
-          celebrate
-        />
+        {looks && (
+          <Partner
+            animal={work.partner}
+            look={looks.look(work.partner)}
+            name={name}
+            color={work.color}
+            progress={1}
+            live
+            celebrate
+          />
+        )}
         <p class="bubble">できたね!</p>
       </section>
       <div class="celebration-text">

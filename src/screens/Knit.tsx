@@ -1,22 +1,26 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Celebration } from '../components/Celebration';
 import { Icon } from '../components/Icon';
+import { InteriorShapePicker } from '../components/InteriorShapePicker';
 import { MemoFields } from '../components/MemoFields';
 import { Partner, type PartnerMotion } from '../components/Partner';
 import { PhotoList } from '../components/PhotoList';
 import { Scene } from '../components/Scene';
 import { ConfirmSheet, Sheet } from '../components/Sheet';
-import { ANIMAL_NAMES } from '../data/animals';
+import { partnerName } from '../data/animals';
+import { defaultInteriorShape } from '../data/wear';
 import { add, progress, pushHistory, snapProgress, undo, unravel, workProgress, type Count } from '../lib/counter';
 import {
   completeWork,
   getPartner,
   getSettings,
   getWork,
+  listPartners,
   listWorks,
   saveSettings,
   saveWork,
   setKnitting,
+  type AnimalId,
   type HistoryEntry,
   type PartnerData,
   type Settings,
@@ -28,6 +32,8 @@ import { go, routes } from '../lib/router';
 import { TapGuard } from '../lib/tapGuard';
 import { useDragSort } from '../lib/useDragSort';
 import { VoiceSession, type VoiceStatus } from '../lib/voice';
+import { countWordsFor } from '../lib/voiceWords';
+import { lookOf } from '../lib/wardrobe';
 import { useWakeLock } from '../lib/wakeLock';
 
 type Pop = { id: number; x: number; y: number; text: string };
@@ -40,6 +46,9 @@ export function Knit({ id }: { id: string }) {
   const [partner, setPartner] = useState<PartnerData | null>(null);
   /** 編みかけの作品(タブと、同じ子が編んでいる別の作品) */
   const [wip, setWip] = useState<Work[]>([]);
+  /** すべての作品(身につけている完成作品の色を知るため)と、6匹の呼び名 */
+  const [allWorks, setAllWorks] = useState<Work[]>([]);
+  const [names, setNames] = useState<Partial<Record<AnimalId, string>>>({});
   const [motion, setMotion] = useState<PartnerMotion | null>(null);
   const [celebrating, setCelebrating] = useState(false);
   const motionCount = useRef(0);
@@ -54,14 +63,19 @@ export function Knit({ id }: { id: string }) {
       if (w.status === 'done') return go(routes.albumWork(w.id), true);
       workRef.current = w;
       setWork(w);
-      const [p, works] = await Promise.all([getPartner(w.partner), listWorks()]);
+      const [p, works, ps] = await Promise.all([getPartner(w.partner), listWorks(), listPartners()]);
       const mine = works.filter((x) => x.status === 'wip');
       setWip(mine);
+      setAllWorks(works);
+      setNames(Object.fromEntries(Object.values(ps).map((x) => [x.animal, partnerName(x.animal, x)])));
       // その子の「今編んでいる作品」がなくなっていたら、この作品を編む
       const knitting = mine.some((x) => x.id === p.knittingWorkId && x.partner === w.partner);
       setPartner(knitting ? p : await setKnitting(w.partner, w.id));
     });
-    getSettings().then(setSettings);
+    getSettings().then((s) => {
+      setSettings(s);
+      voiceWords = s.voiceWords;
+    });
   }, [id]);
 
   /** その子が別の作品を編んでいるときは、その作品 */
@@ -190,6 +204,7 @@ export function Knit({ id }: { id: string }) {
   const quick = settings.quickAdds[0];
   const canFinish = work.status === 'wip' && (p !== null ? p >= 1 : work.manualProgress >= 100);
   const shown = other ?? work;
+  const name = partnerName(work.partner, partner);
 
   return (
     <main class="screen knit">
@@ -197,14 +212,15 @@ export function Knit({ id }: { id: string }) {
         <a class="round-button" href={routes.home()} aria-label="ホームへ戻る">
           <Icon name="back" />
         </a>
-        {wip.length >= 2 ? <WorkTabs works={wip} current={work.id} /> : <h1>{work.name}</h1>}
+        {wip.length >= 2 ? <WorkTabs works={wip} current={work.id} names={names} /> : <h1>{work.name}</h1>}
       </div>
 
       <section class="meadow" aria-label="パートナー">
         <Scene kind="meadow" />
         <Partner
           animal={work.partner}
-          decoration={partner?.decoration}
+          look={partner ? lookOf(partner, allWorks) : undefined}
+          name={name}
           color={shown.color}
           progress={workProgress(shown)}
           motion={motion}
@@ -219,7 +235,7 @@ export function Knit({ id }: { id: string }) {
         {other && (
           <div class="knitting-other">
             <span>
-              {ANIMAL_NAMES[work.partner]}は「{other.name}」を編んでいます
+              {name}は「{other.name}」を編んでいます
             </span>
             <button class="primary-button small" onClick={knitThis}>
               こっちを編む
@@ -314,6 +330,16 @@ export function Knit({ id }: { id: string }) {
       {sheet === 'memo' && (
         <Sheet title="メモ" tall onClose={() => setSheet(null)}>
           <MemoFields memo={work.memo} onChange={(memo) => update({ memo })} />
+          {work.department === 'interior' && (
+            <div class="field">
+              <span class="field-title">部屋に飾るときの絵</span>
+              <InteriorShapePicker
+                value={work.interiorShape ?? defaultInteriorShape(work.kind)}
+                color={work.color}
+                onChange={(interiorShape) => update({ interiorShape })}
+              />
+            </div>
+          )}
           <div class="field">
             <span class="field-title">編み図の写真</span>
             <PhotoList workId={work.id} kind="pattern" />
@@ -329,7 +355,7 @@ export function Knit({ id }: { id: string }) {
       {sheet === 'complete' && (
         <ConfirmSheet
           title="完成にしますか?"
-          message={`「${work.name}」を完成にして、${ANIMAL_NAMES[work.partner]}にわたします。まちがえたときは、アルバムから編みかけに戻せます`}
+          message={`「${work.name}」を完成にして、${name}にわたします。まちがえたときは、アルバムから編みかけに戻せます`}
           ok="完成!"
           onOk={finish}
           onClose={() => setSheet(null)}
@@ -338,7 +364,6 @@ export function Knit({ id }: { id: string }) {
       {celebrating && (
         <Celebration
           work={work}
-          partner={partner}
           onRecord={() => go(routes.record(work.id), true)}
           onLater={() => go(routes.home(), true)}
         />
@@ -349,9 +374,17 @@ export function Knit({ id }: { id: string }) {
 
 // ---------- 作品タブ(編みかけが2つ以上のとき) ----------
 
-function WorkTabs({ works, current }: { works: Work[]; current: string }) {
+function WorkTabs({
+  works,
+  current,
+  names,
+}: {
+  works: Work[];
+  current: string;
+  names: Partial<Record<AnimalId, string>>;
+}) {
   const box = useRef<HTMLDivElement>(null);
-  const labels = works.map((w) => `${w.kind}・${ANIMAL_NAMES[w.partner]}`);
+  const labels = works.map((w) => `${w.kind}・${names[w.partner] ?? partnerName(w.partner)}`);
 
   // 今の作品のタブが見えるように、タブの列だけを横にずらす
   useLayoutEffect(() => {
@@ -504,6 +537,8 @@ const voiceListeners = new Set<(s: VoiceState) => void>();
 let voiceState: VoiceState = { on: false, status: { kind: 'idle' }, finalText: '', interim: '', notice: '' };
 let voiceSession: VoiceSession | null = null;
 let voiceCount: ((n: number) => void) | null = null;
+/** 1カウントになる言葉(設定で変えられる) */
+let voiceWords: string[] = ['あみ'];
 
 function setVoice(patch: Partial<VoiceState>) {
   voiceState = { ...voiceState, ...patch };
@@ -524,6 +559,7 @@ function useVoice(): VoiceState {
 function startVoice() {
   setVoice({ on: true, finalText: '', interim: '', notice: '' });
   const session = new VoiceSession({
+    words: countWordsFor(voiceWords),
     onCount: (n) => voiceCount?.(n),
     onStatus: (status) => voiceSession === session && setVoice({ status }),
     onTranscript: (finalText, interim) => voiceSession === session && setVoice({ finalText, interim }),
@@ -593,7 +629,7 @@ function KnitNote({ wakeLock }: { wakeLock: boolean }) {
 const STATUS_TEXT: Record<VoiceStatus['kind'], string> = {
   idle: '止まっています',
   starting: '準備しています…',
-  listening: '聞いています。「あみ」で1目',
+  listening: '聞いています',
   restarting: 'つなぎ直しています…',
   error: '',
 };
@@ -606,7 +642,11 @@ function VoicePanel() {
     <div class="voice-panel" aria-live="polite">
       <div class={`status${isError ? ' error' : ''}`}>
         <span class="on-label">音声オン</span>
-        {v.status.kind === 'error' ? v.status.message : STATUS_TEXT[v.status.kind]}
+        {v.status.kind === 'error'
+          ? v.status.message
+          : v.status.kind === 'listening'
+            ? `${STATUS_TEXT.listening}。「${voiceWords[0]}」で1目`
+            : STATUS_TEXT[v.status.kind]}
       </div>
       <div class="heard">
         <span>{v.finalText.slice(-40) || '…'}</span>

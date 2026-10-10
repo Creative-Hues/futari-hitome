@@ -13,6 +13,8 @@ export type VoiceStatus =
   | { kind: 'error'; message: string };
 
 export interface VoiceCallbacks {
+  /** 1カウントになる言葉(設定の言葉。なければ最初の言葉) */
+  words?: string[];
   /** 確定した文字から読み取った数だけ進める */
   onCount: (n: number) => void;
   onStatus: (status: VoiceStatus) => void;
@@ -94,7 +96,7 @@ export class VoiceSession {
           finalText += text;
           if (!counted.has(i)) {
             counted.add(i);
-            const n = countFromTranscript(text);
+            const n = countFromTranscript(text, this.cb.words);
             if (n > 0) this.cb.onCount(n);
           }
         } else {

@@ -8,6 +8,10 @@ export const routes = {
   record: (id: string) => `#/record/${encodeURIComponent(id)}`,
   album: () => '#/album',
   albumWork: (id: string) => `#/album/${encodeURIComponent(id)}`,
+  partners: () => '#/partners',
+  partner: (animal: string) => `#/partner/${animal}`,
+  settings: () => '#/settings',
+  roomSettings: () => '#/settings/room',
 };
 
 export function go(hash: string, replace = false) {

@@ -1,22 +1,36 @@
 import { useEffect, useState } from 'preact/hooks';
 import { BottomNav } from '../components/BottomNav';
+import { Icon } from '../components/Icon';
 import { Partner } from '../components/Partner';
 import { Scene } from '../components/Scene';
-import { ANIMAL_NAMES } from '../data/animals';
 import { departmentName } from '../data/departments';
 import { workProgress } from '../lib/counter';
-import { listPartners, listWorks, reorderWorks, type AnimalId, type PartnerData, type Work } from '../lib/db';
+import {
+  getRoom,
+  listPartners,
+  listWorks,
+  reorderWorks,
+  type AnimalId,
+  type PartnerData,
+  type RoomData,
+  type Work,
+} from '../lib/db';
+import { makeLooks, roomResident, type Looks } from '../lib/looks';
 import { go, routes } from '../lib/router';
 import { useDragSort } from '../lib/useDragSort';
 
 export function Home() {
   const [works, setWorks] = useState<Work[] | null>(null);
   const [partners, setPartners] = useState<Record<AnimalId, PartnerData> | null>(null);
+  const [room, setRoom] = useState<RoomData | null>(null);
 
   useEffect(() => {
     listWorks().then(setWorks);
     listPartners().then(setPartners);
+    getRoom().then(setRoom);
   }, []);
+
+  const looks = works && partners ? makeLooks(partners, works) : null;
 
   const wip = works?.filter((w) => w.status === 'wip') ?? [];
   // 編みかけの作品は長押しで並び替え(編む画面のタブも同じ並びになる)
@@ -30,23 +44,25 @@ export function Home() {
     },
   );
 
-  // 部屋にいるのは最後に編んだ子(いちばん最近数えた作品の子)。持っているのはその子が今編んでいる作品
-  const last = works?.reduce<Work | null>((a, w) => (!a || w.updatedAt > a.updatedAt ? w : a), null);
-  const animal = last?.partner ?? 'sheep';
-  const holding = works?.find((w) => w.id === partners?.[animal].knittingWorkId && w.status === 'wip');
+  // 部屋にいるのは最後に編んだ子。持っているのはその子が今編んでいる作品
+  const { animal, holding, last } = looks ? roomResident(looks) : { animal: 'sheep' as const, holding: undefined, last: null };
 
   return (
     <main class="screen with-nav">
       <header class="home-header">
         <h1>ふたりひとめ</h1>
+        <a class="round-button" href={routes.settings()} aria-label="設定">
+          <Icon name="gear" />
+        </a>
       </header>
 
       <section class="room" aria-label="パートナーの部屋">
-        <Scene kind="room" />
-        {works && partners && (
+        {room && <Scene kind="room" room={room} works={works ?? []} />}
+        {looks && (
           <Partner
             animal={animal}
-            decoration={partners[animal].decoration}
+            look={looks.look(animal)}
+            name={looks.name(animal)}
             color={holding?.color ?? last?.color}
             progress={holding ? workProgress(holding) : 0}
             live
@@ -69,7 +85,7 @@ export function Home() {
           <WorkCard
             key={w.id}
             work={w}
-            partner={partners?.[w.partner]}
+            looks={looks}
             knittingOther={!!partners && !!partners[w.partner].knittingWorkId && partners[w.partner].knittingWorkId !== w.id}
             bind={drag.bind(w.id)}
           />
@@ -87,22 +103,24 @@ export function Home() {
 
 function WorkCard({
   work,
-  partner,
+  looks,
   knittingOther,
   bind,
 }: {
   work: Work;
-  partner?: PartnerData;
+  looks: Looks | null;
   /** その子がいま別の作品を編んでいる */
   knittingOther: boolean;
   bind: object;
 }) {
   const p = workProgress(work);
-  const name = ANIMAL_NAMES[work.partner];
+  const name = looks?.name(work.partner) ?? '';
   return (
     <a class="work-card card" href={routes.knit(work.id)} draggable={false} {...bind}>
       <span class="thumb">
-        <Partner animal={work.partner} decoration={partner?.decoration} color={work.color} progress={p} />
+        {looks && (
+          <Partner animal={work.partner} look={looks.look(work.partner)} name={name} color={work.color} progress={p} />
+        )}
       </span>
       <span class="info">
         <span class="name">{work.name}</span>

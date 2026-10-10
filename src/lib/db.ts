@@ -1,9 +1,11 @@
 // 端末内の保存(IndexedDB)。外には何も送らない。
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { ANIMALS, type DecorationId } from '../data/animals';
+import type { InteriorShape, WearDept } from '../data/wear';
 import type { Count } from './counter';
-import { CURRENT_DATA_VERSION, migrate, newPartner, pickKnitting } from './migrate';
+import { CURRENT_DATA_VERSION, DEFAULT_VOICE_WORDS, migrate, newPartner, newRoom, pickKnitting } from './migrate';
 import type { Pattern } from './pattern';
+import { displayOnComplete, undisplay, unwear, wearOnComplete } from './wardrobe';
 
 export type DepartmentId = 'head' | 'neck' | 'body' | 'paw' | 'wear' | 'interior';
 export type AnimalId = 'sheep' | 'cat' | 'stoat' | 'axolotl' | 'seal' | 'otter';
@@ -55,6 +57,8 @@ export interface Work {
   finishedAt: string | null;
   /** 完成した作品をもらった子。編みかけは null */
   giftedTo: AnimalId | null;
+  /** 小物やインテリアの作品を部屋に飾るときの絵。ほかの部門は null */
+  interiorShape: InteriorShape | null;
   updatedAt: string;
 }
 
@@ -63,6 +67,8 @@ export interface Settings {
   dataVersion: number;
   /** 「+N」に登録した数(一番上がボタンに出る) */
   quickAdds: number[];
+  /** 音声入力で1カウントになる言葉 */
+  voiceWords: string[];
 }
 
 /** 動物ごとに1匹のパートナーの個体データ */
@@ -72,10 +78,11 @@ export interface PartnerData {
   met: boolean;
   metAt: string | null;
   decoration: DecorationId;
-  /** 体の色・目の色・身につけている作品(フェーズ4で使う。null は素材のまま) */
+  /** 体の色・目の色(null は素材のままの色) */
   bodyColor: string | null;
   eyeColor: string | null;
-  wearingWorkId: string | null;
+  /** 身につけている作品のID(部門ごとに1つずつ) */
+  wearing: Partial<Record<WearDept, string>>;
   /** 名前(任意) */
   name: string;
   /** 今編んでいる作品(同じ子が2つの作品に入っているとき、どちらを編むか) */
@@ -96,20 +103,36 @@ export interface Photo {
   createdAt: string;
 }
 
+/** 部屋(1件):色・鉢植えの花・飾っている作品 */
+export interface RoomData {
+  key: 'room';
+  wall: string;
+  floor: string;
+  curtain: string;
+  rug: string;
+  yarn1: string;
+  yarn2: string;
+  flower: DecorationId;
+  /** 飾っている作品のID(最大3つ。並び順 = 置き場所:床の右・ラグの左手前・窓辺) */
+  displayed: string[];
+}
+
 interface FutariDB extends DBSchema {
   works: { key: string; value: Work };
   settings: { key: string; value: Settings };
   partners: { key: string; value: PartnerData };
   photos: { key: string; value: Photo; indexes: { byWork: string } };
+  room: { key: string; value: RoomData };
 }
 
 const DB_NAME = 'futari-hitome';
-const DB_SCHEMA_VERSION = 3;
+const DB_SCHEMA_VERSION = 4;
 
 export const DEFAULT_SETTINGS: Settings = {
   key: 'app',
   dataVersion: CURRENT_DATA_VERSION,
   quickAdds: [10],
+  voiceWords: DEFAULT_VOICE_WORDS,
 };
 
 let dbPromise: Promise<IDBPDatabase<FutariDB>> | null = null;
@@ -130,6 +153,9 @@ function db(): Promise<IDBPDatabase<FutariDB>> {
           const photos = database.createObjectStore('photos', { keyPath: 'id' });
           photos.createIndex('byWork', 'workId');
         }
+        if (oldVersion < 4) {
+          database.createObjectStore('room', { keyPath: 'key' });
+        }
       },
     }).then(async (database) => {
       await migrate(database);
@@ -146,7 +172,7 @@ export function newId(): string {
 }
 
 export async function getSettings(): Promise<Settings> {
-  return (await (await db()).get('settings', 'app')) ?? { ...DEFAULT_SETTINGS };
+  return { ...DEFAULT_SETTINGS, ...(await (await db()).get('settings', 'app')) };
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {
@@ -190,30 +216,37 @@ export async function reorderWorks(ids: string[]): Promise<void> {
   await tx.done;
 }
 
-/** 完成にする。もらった子を記録し、その子の「今編んでいる作品」をほかの編みかけに移す */
+/**
+ * 完成にする。もらった子を記録し、その子の「今編んでいる作品」をほかの編みかけに移す。
+ * その部門でまだ何も身につけていなければ身につけ、小物やインテリアは空いている置き場所に飾る
+ */
 export async function completeWork(id: string): Promise<Work | undefined> {
-  const tx = (await db()).transaction(['works', 'partners'], 'readwrite');
+  const tx = (await db()).transaction(['works', 'partners', 'room'], 'readwrite');
   const works = tx.objectStore('works');
   const partners = tx.objectStore('partners');
+  const rooms = tx.objectStore('room');
   const w = await works.get(id);
   if (!w) return undefined;
   const now = new Date().toISOString();
   const done: Work = { ...w, status: 'done', finishedAt: now, giftedTo: w.partner, updatedAt: now };
   await works.put(done);
-  const p = (await partners.get(w.partner)) ?? newPartner(w.partner);
+  let p = wearOnComplete((await partners.get(w.partner)) ?? newPartner(w.partner), done);
   if (!p.knittingWorkId || p.knittingWorkId === id) {
     const rest = (await works.getAll()).filter((x) => x.id !== id);
-    await partners.put({ ...p, knittingWorkId: pickKnitting(w.partner, rest) });
+    p = { ...p, knittingWorkId: pickKnitting(w.partner, rest) };
   }
+  await partners.put(p);
+  await rooms.put(displayOnComplete({ ...newRoom(), ...(await rooms.get('room')) }, done));
   await tx.done;
   return done;
 }
 
-/** 完成を取り消して編みかけに戻す(写真・感想・メモ・数は残す) */
+/** 完成を取り消して編みかけに戻す(写真・感想・メモ・数は残す)。身につけていた・飾っていたら外す */
 export async function reopenWork(id: string): Promise<Work | undefined> {
-  const tx = (await db()).transaction(['works', 'partners'], 'readwrite');
+  const tx = (await db()).transaction(['works', 'partners', 'room'], 'readwrite');
   const works = tx.objectStore('works');
   const partners = tx.objectStore('partners');
+  const rooms = tx.objectStore('room');
   const w = await works.get(id);
   if (!w) return undefined;
   const all = await works.getAll();
@@ -227,9 +260,12 @@ export async function reopenWork(id: string): Promise<Work | undefined> {
     updatedAt: new Date().toISOString(),
   };
   await works.put(wip);
-  const p = (await partners.get(w.partner)) ?? newPartner(w.partner);
+  let p = unwear((await partners.get(w.partner)) ?? newPartner(w.partner), id);
   const current = all.find((x) => x.id === p.knittingWorkId);
-  if (!current || current.status !== 'wip') await partners.put({ ...p, knittingWorkId: id });
+  if (!current || current.status !== 'wip') p = { ...p, knittingWorkId: id };
+  await partners.put(p);
+  const room = await rooms.get('room');
+  if (room) await rooms.put(undisplay(room, id));
   await tx.done;
   return wip;
 }
@@ -245,6 +281,10 @@ export async function listPartners(): Promise<Record<AnimalId, PartnerData>> {
 
 export async function getPartner(animal: AnimalId): Promise<PartnerData> {
   return (await (await db()).get('partners', animal)) ?? newPartner(animal);
+}
+
+export async function savePartner(p: PartnerData): Promise<void> {
+  await (await db()).put('partners', p);
 }
 
 /** その子と初めて編むときに「出会う」 */
@@ -299,4 +339,14 @@ export async function reorderPhotos(ids: string[]): Promise<void> {
     }),
   );
   await tx.done;
+}
+
+// ---------- 部屋 ----------
+
+export async function getRoom(): Promise<RoomData> {
+  return { ...newRoom(), ...(await (await db()).get('room', 'room')) };
+}
+
+export async function saveRoom(room: RoomData): Promise<void> {
+  await (await db()).put('room', room);
 }

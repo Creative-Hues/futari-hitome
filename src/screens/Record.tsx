@@ -1,17 +1,19 @@
 // 完成記録:写真・感想を入れる。日付・日数・編んだ時間・最後の数は自動で入る
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Icon } from '../components/Icon';
+import { InteriorShapePicker } from '../components/InteriorShapePicker';
 import { MemoFields } from '../components/MemoFields';
 import { Partner } from '../components/Partner';
 import { PhotoList } from '../components/PhotoList';
 import { RecordFacts } from '../components/RecordFacts';
-import { ANIMAL_NAMES } from '../data/animals';
-import { getPartner, getWork, saveWork, type PartnerData, type Work } from '../lib/db';
+import { defaultInteriorShape } from '../data/wear';
+import { getWork, saveWork, type Work } from '../lib/db';
+import { useLooks } from '../lib/looks';
 import { go, routes } from '../lib/router';
 
 export function Record({ id }: { id: string }) {
   const [work, setWork] = useState<Work | null>(null);
-  const [partner, setPartner] = useState<PartnerData | null>(null);
+  const looks = useLooks();
   const [missing, setMissing] = useState(false);
   const workRef = useRef<Work | null>(null);
 
@@ -21,7 +23,6 @@ export function Record({ id }: { id: string }) {
       if (w.status !== 'done') return go(routes.knit(w.id), true);
       workRef.current = w;
       setWork(w);
-      getPartner(w.giftedTo ?? w.partner).then(setPartner);
     });
   }, [id]);
 
@@ -38,6 +39,7 @@ export function Record({ id }: { id: string }) {
   if (missing) return <Missing />;
   if (!work) return <main class="screen" />;
   const animal = work.giftedTo ?? work.partner;
+  const name = looks?.name(animal) ?? '';
 
   return (
     <main class="screen">
@@ -51,13 +53,27 @@ export function Record({ id }: { id: string }) {
       <div class="record">
         <div class="gift card">
           <span class="thumb">
-            <Partner animal={animal} decoration={partner?.decoration} color={work.color} progress={1} />
+            {looks && <Partner animal={animal} look={looks.look(animal)} name={name} color={work.color} progress={1} />}
           </span>
           <span>
             <span class="gift-name">{work.name}</span>
-            <span class="gift-sub">{ANIMAL_NAMES[animal]}が もらってくれました</span>
+            <span class="gift-sub">{name}が もらってくれました</span>
+            <a class="gift-link" href={routes.partner(animal)}>
+              {work.department === 'interior' ? 'パートナーの画面で部屋に飾る' : 'パートナーの画面で身につける'}
+            </a>
           </span>
         </div>
+
+        {work.department === 'interior' && (
+          <section class="field">
+            <h2 class="field-title">部屋に飾るときの絵</h2>
+            <InteriorShapePicker
+              value={work.interiorShape ?? defaultInteriorShape(work.kind)}
+              color={work.color}
+              onChange={(interiorShape) => update({ interiorShape })}
+            />
+          </section>
+        )}
 
         <section class="field">
           <h2 class="field-title">完成した作品の写真</h2>

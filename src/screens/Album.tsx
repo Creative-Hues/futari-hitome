@@ -3,38 +3,31 @@ import { useEffect, useState } from 'preact/hooks';
 import { BottomNav } from '../components/BottomNav';
 import { Partner } from '../components/Partner';
 import { PhotoThumb } from '../components/PhotoList';
-import { ANIMALS, ANIMAL_NAMES } from '../data/animals';
-import {
-  coverPhotos,
-  listPartners,
-  listWorks,
-  type AnimalId,
-  type PartnerData,
-  type Photo,
-  type Work,
-} from '../lib/db';
+import { ANIMALS } from '../data/animals';
+import { coverPhotos, type AnimalId, type Photo, type Work } from '../lib/db';
+import { useLooks } from '../lib/looks';
 import { formatDate } from '../lib/knitTime';
 import { isPersisted } from '../lib/persist';
 import { routes } from '../lib/router';
 
 export function Album() {
-  const [done, setDone] = useState<Work[] | null>(null);
+  const looks = useLooks();
   const [covers, setCovers] = useState<Record<string, Photo>>({});
-  const [partners, setPartners] = useState<Record<AnimalId, PartnerData> | null>(null);
   const [filter, setFilter] = useState<AnimalId | null>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    listWorks().then((works) => {
-      const list = works
+  const done: Work[] | null = looks
+    ? looks.works
         .filter((w) => w.status === 'done')
-        .sort((a, b) => ((a.finishedAt ?? '') < (b.finishedAt ?? '') ? 1 : -1));
-      setDone(list);
-      coverPhotos(list.map((w) => w.id)).then(setCovers);
-    });
-    listPartners().then(setPartners);
+        .sort((a, b) => ((a.finishedAt ?? '') < (b.finishedAt ?? '') ? 1 : -1))
+    : null;
+
+  useEffect(() => {
     isPersisted().then(setPersisted);
   }, []);
+  useEffect(() => {
+    if (done) coverPhotos(done.map((w) => w.id)).then(setCovers);
+  }, [looks]);
 
   const owner = (w: Work) => w.giftedTo ?? w.partner;
   const animals = ANIMALS.filter((a) => done?.some((w) => owner(w) === a));
@@ -53,7 +46,7 @@ export function Album() {
           </button>
           {animals.map((a) => (
             <button class="chip" aria-pressed={filter === a} onClick={() => setFilter(a)}>
-              {ANIMAL_NAMES[a]}
+              {looks?.name(a)}
             </button>
           ))}
         </div>
@@ -72,7 +65,8 @@ export function Album() {
               ) : (
                 <Partner
                   animal={owner(w)}
-                  decoration={partners?.[owner(w)].decoration}
+                  look={looks?.look(owner(w))}
+                  name={looks?.name(owner(w))}
                   color={w.color}
                   progress={1}
                 />
@@ -80,7 +74,7 @@ export function Album() {
             </span>
             <span class="name">{w.name}</span>
             <span class="sub">
-              {w.finishedAt ? formatDate(w.finishedAt) : ''} ・ {ANIMAL_NAMES[owner(w)]}
+              {w.finishedAt ? formatDate(w.finishedAt) : ''} ・ {looks?.name(owner(w))}
             </span>
           </a>
         ))}

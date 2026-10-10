@@ -2,8 +2,9 @@
 // assets/ のファイルは変えない。読み込んだあとメモリの中で、目印付けと並びのまとめ直しだけをする。
 //
 // できあがりの重なり(下から):
-//   影 / [ふれあい [呼吸 [体・編み地・左右の手(.pt-hand-l / .pt-hand-r)・頭飾り(.pt-deco)]]]
+//   影 / [ふれあい [呼吸 [体・身につけた作品・編み地・左右の手(.pt-hand-l / .pt-hand-r、手袋もこの中)・頭飾り(.pt-deco)]]]
 import { addClass, children, colorVar, el, parseSvg, prefixIds, serialize, wrap } from './svgPrep';
+import { addWear, type WearInput } from './wearSvg';
 
 const EYE_FILLS = ['#1a1620', '#fdfbff'];
 /** 左右の手の回転の中心(assets/README.md) */
@@ -23,6 +24,8 @@ export interface PartnerSvgInput {
   anchor: { x: number; y: number };
   scale: number;
   prefix: string;
+  /** 身につけた作品(なければ空) */
+  wear?: WearInput[];
 }
 
 export function preparePartner(i: PartnerSvgInput): string {
@@ -35,9 +38,14 @@ export function preparePartner(i: PartnerSvgInput): string {
 
   markKnit(root, i.prefix);
   markHands(root);
+  markBody(root, i.prefix);
   for (const c of root.querySelectorAll('circle')) {
-    if (EYE_FILLS.includes(c.getAttribute('fill') ?? '')) addClass(c, 'pt-eye');
+    if (EYE_FILLS.includes(c.getAttribute('fill') ?? '')) {
+      addClass(c, 'pt-eye');
+      colorVar(c, 'fill', '--eye');
+    }
   }
+  if (i.wear?.length) addWear(root, i.wear, i.prefix);
 
   // 影と defs 以外を「呼吸」と「ふれあい」の入れ物に入れる
   const moving = children(root).filter((c) => c.tagName !== 'defs' && !isShadow(c));
@@ -59,6 +67,13 @@ export function preparePartner(i: PartnerSvgInput): string {
 
 function isShadow(e: Element): boolean {
   return e.tagName === 'ellipse' && e.getAttribute('fill') === '#000';
+}
+
+/** 体の白(wool のグラデーション3色・編み目の線・しっぽの白い線)を、体の色に差し替えられるようにCSS変数 */
+function markBody(root: Element, prefix: string) {
+  root.querySelectorAll(`[id="${prefix}wool"] stop`).forEach((s, i) => colorVar(s, 'stop-color', `--body-${i}`));
+  for (const p of root.querySelectorAll(`[id="${prefix}stitch"] path`)) colorVar(p, 'stroke', '--body-stitch');
+  for (const p of root.querySelectorAll('path[stroke="#f3eef4"]')) colorVar(p, 'stroke', '--body-tail');
 }
 
 /** 編み地:高さを変えられるように目印、色を作品の色に差し替えられるようにCSS変数 */

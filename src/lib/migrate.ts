@@ -1,10 +1,16 @@
 // データのバージョン番号と、古い形のデータを新しい形に直す仕組み。
 // データの形を変えるときは CURRENT_DATA_VERSION を1つ上げ、STEPS に「前の番号 → 次の番号」の直し方を足す。
 import type { IDBPDatabase } from 'idb';
+import { ROOM_PALETTES } from '../config/room';
 import { ANIMALS, defaultDecoration } from '../data/animals';
-import type { AnimalId, PartnerData, Work } from './db';
+import { defaultInteriorShape, WEAR_DEPTS } from '../data/wear';
+import type { AnimalId, PartnerData, RoomData, Work } from './db';
+import { initialDisplay, initialWearing } from './wardrobe';
 
-export const CURRENT_DATA_VERSION = 3;
+export const CURRENT_DATA_VERSION = 4;
+
+/** 音声入力で1カウントになる言葉(最初) */
+export const DEFAULT_VOICE_WORDS = ['あみ'];
 
 type AnyDB = IDBPDatabase<any>;
 
@@ -17,7 +23,7 @@ export function newPartner(animal: AnimalId): PartnerData {
     decoration: defaultDecoration(animal),
     bodyColor: null,
     eyeColor: null,
-    wearingWorkId: null,
+    wearing: {},
     name: '',
     knittingWorkId: null,
   };
@@ -50,6 +56,32 @@ export function workToV3<T extends object>(w: T) {
   };
 }
 
+/** 最初の部屋:おすすめの「はじめの部屋」の色と花(今までのホームと同じ見た目) */
+export function newRoom(): RoomData {
+  const { name: _name, ...first } = ROOM_PALETTES[0];
+  return { key: 'room', ...first, displayed: [] };
+}
+
+/** バージョン3の作品に、部屋に飾るときの絵を足す(小物やインテリアだけ。種類名から決める) */
+export function workToV4<T extends { department: string; kind: string }>(w: T): T & { interiorShape: Work['interiorShape'] } {
+  const shape = w.department === 'interior' ? defaultInteriorShape(w.kind) : null;
+  return { interiorShape: shape, ...w };
+}
+
+/** バージョン3のパートナーの「身につけている作品」(1つ)を、部門ごとの形にする。完成作品は部門ごとに一番新しいものを身につける */
+export function partnerToV4(
+  p: Omit<PartnerData, 'wearing'> & { wearingWorkId?: string | null; wearing?: PartnerData['wearing'] },
+  works: Pick<Work, 'id' | 'department' | 'status' | 'giftedTo' | 'finishedAt'>[],
+): PartnerData {
+  const { wearingWorkId, ...rest } = p;
+  const wearing = { ...initialWearing(p.animal, works), ...p.wearing };
+  const old = works.find((w) => w.id === wearingWorkId && w.giftedTo === p.animal);
+  if (old && (WEAR_DEPTS as string[]).includes(old.department)) {
+    wearing[old.department as keyof PartnerData['wearing']] = old.id;
+  }
+  return { ...rest, wearing };
+}
+
 /** その子の「今編んでいる作品」:編みかけのうち、最後に数えた作品 */
 export function pickKnitting(
   animal: AnimalId,
@@ -80,14 +112,32 @@ const STEPS: Record<number, (db: AnyDB) => Promise<void>> = {
       }
     }
   },
+  // 3 → 4:作品に部屋に飾るときの絵、パートナーに部門ごとの「身につけている作品」、部屋、音声の言葉。
+  // フェーズ3までに完成した作品は、同じ決め方で身につけ・飾っておく
+  3: async (db) => {
+    const works = (await db.getAll('works')).map(workToV4);
+    for (const w of works) await db.put('works', w);
+    for (const p of await db.getAll('partners')) await db.put('partners', partnerToV4(p, works));
+    if (!(await db.get('room', 'room'))) {
+      await db.put('room', { ...newRoom(), displayed: initialDisplay(works) });
+    }
+    const settings = await db.get('settings', 'app');
+    if (!settings.voiceWords) await db.put('settings', { ...settings, voiceWords: DEFAULT_VOICE_WORDS });
+  },
 };
 
 export async function migrate(db: AnyDB): Promise<void> {
   const settings = await db.get('settings', 'app');
   if (!settings) {
     // 初めて開いたとき
-    await db.put('settings', { key: 'app', dataVersion: CURRENT_DATA_VERSION, quickAdds: [10] });
+    await db.put('settings', {
+      key: 'app',
+      dataVersion: CURRENT_DATA_VERSION,
+      quickAdds: [10],
+      voiceWords: DEFAULT_VOICE_WORDS,
+    });
     for (const p of partnersFromWorks([])) await db.put('partners', p);
+    await db.put('room', newRoom());
     return;
   }
   let version: number = settings.dataVersion ?? 1;
