@@ -39,4 +39,5 @@
   --press-scale: 0.985; /* タップ場所を押したときの縮み */
   --press-duration: 90ms;
   --sheet-duration: 220ms; /* 下から出るシート */
+  --live-blink-duration: 1.2s; /* 音声オンの点の点滅 */
 }

@@ -18,6 +18,8 @@ export interface VoiceCallbacks {
   onStatus: (status: VoiceStatus) => void;
   /** 確かめ用:確定した文字と、途中の文字 */
   onTranscript: (finalText: string, interimText: string) => void;
+  /** 続けられなくなった(マイクが許可されていない、など)。理由を渡す */
+  onGiveUp: (message: string) => void;
 }
 
 function recognitionClass(): (new () => Recognition) | null {
@@ -50,7 +52,7 @@ export class VoiceSession {
   start(): void {
     const Ctor = recognitionClass();
     if (!Ctor) {
-      this.cb.onStatus({ kind: 'error', message: 'この端末では使えません' });
+      this.cb.onGiveUp('この端末では使えません');
       return;
     }
     this.wanted = true;
@@ -105,8 +107,12 @@ export class VoiceSession {
     r.onerror = (event: any) => {
       const code: string = event.error ?? 'unknown';
       if (code === 'no-speech' || code === 'aborted') return;
-      if (FATAL_ERRORS.has(code)) this.wanted = false;
-      this.cb.onStatus({ kind: 'error', message: ERROR_MESSAGES[code] ?? `止まりました(${code})` });
+      const message = ERROR_MESSAGES[code] ?? `止まりました(${code})`;
+      if (FATAL_ERRORS.has(code)) {
+        this.giveUp(message);
+        return;
+      }
+      this.cb.onStatus({ kind: 'error', message });
     };
 
     r.onend = () => {
@@ -126,8 +132,13 @@ export class VoiceSession {
     try {
       r.start();
     } catch (e) {
-      this.wanted = false;
-      this.cb.onStatus({ kind: 'error', message: `始められません(${(e as Error).message})` });
+      this.giveUp(`始められません(${(e as Error).message})`);
     }
+  }
+
+  /** つなぎ直しても直らないときは止めて、理由を知らせる */
+  private giveUp(message: string): void {
+    this.stop();
+    this.cb.onGiveUp(message);
   }
 }

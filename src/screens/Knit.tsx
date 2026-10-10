@@ -19,6 +19,7 @@ export function Knit({ id }: { id: string }) {
   const [sheet, setSheet] = useState<'plus' | 'unravel' | null>(null);
   const workRef = useRef<Work | null>(null);
   const wakeLock = useWakeLock();
+  useVoiceAutoOff();
 
   useEffect(() => {
     getWork(id).then((w) => {
@@ -126,7 +127,7 @@ export function Knit({ id }: { id: string }) {
         </button>
         <VoiceButton />
       </div>
-      <p class="knit-note">{wakeLock ? '編んでいる間は画面がスリープしません' : ''}</p>
+      <KnitNote wakeLock={wakeLock} />
 
       {sheet === 'plus' && (
         <PlusSheet
@@ -160,9 +161,16 @@ export function Knit({ id }: { id: string }) {
 // ---------- 音声入力(編む画面の中だけで使う) ----------
 
 // 音声のボタンと、タップ場所に出す確かめ用の欄が同じ状態を見るための小さな入れ物
-type VoiceState = { on: boolean; status: VoiceStatus; finalText: string; interim: string };
+type VoiceState = {
+  on: boolean;
+  status: VoiceStatus;
+  finalText: string;
+  interim: string;
+  /** 続けられずにオフになった理由(次にボタンを押すと消える) */
+  notice: string;
+};
 const voiceListeners = new Set<(s: VoiceState) => void>();
-let voiceState: VoiceState = { on: false, status: { kind: 'idle' }, finalText: '', interim: '' };
+let voiceState: VoiceState = { on: false, status: { kind: 'idle' }, finalText: '', interim: '', notice: '' };
 let voiceSession: VoiceSession | null = null;
 let voiceCount: ((n: number) => void) | null = null;
 
@@ -182,29 +190,73 @@ function useVoice(): VoiceState {
   return s;
 }
 
-function toggleVoice() {
-  if (voiceState.on) {
-    voiceSession?.stop();
-    voiceSession = null;
-    setVoice({ on: false, finalText: '', interim: '' });
-    return;
-  }
-  setVoice({ on: true, finalText: '', interim: '' });
-  voiceSession = new VoiceSession({
+function startVoice() {
+  setVoice({ on: true, finalText: '', interim: '', notice: '' });
+  const session = new VoiceSession({
     onCount: (n) => voiceCount?.(n),
-    onStatus: (status) => setVoice({ status }),
-    onTranscript: (finalText, interim) => setVoice({ finalText, interim }),
+    onStatus: (status) => voiceSession === session && setVoice({ status }),
+    onTranscript: (finalText, interim) => voiceSession === session && setVoice({ finalText, interim }),
+    onGiveUp: (message) => stopVoice(`音声:${message}`),
   });
-  voiceSession.start();
+  voiceSession = session;
+  session.start();
+}
+
+function stopVoice(notice = '') {
+  const session = voiceSession;
+  voiceSession = null;
+  session?.stop();
+  setVoice({ on: false, status: { kind: 'idle' }, finalText: '', interim: '', notice });
+}
+
+function toggleVoice() {
+  if (voiceState.on) stopVoice();
+  else startVoice();
+}
+
+/** 編む画面から離れたとき・アプリを閉じたり切り替えたりしたときは、音声を自動でオフにする */
+function useVoiceAutoOff() {
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden' && voiceState.on) stopVoice();
+    };
+    const onPageHide = () => voiceState.on && stopVoice();
+    document.addEventListener('visibilitychange', onHidden);
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('pagehide', onPageHide);
+      stopVoice();
+    };
+  }, []);
 }
 
 function VoiceButton() {
   const v = useVoice();
   return (
-    <button class="tool" aria-pressed={v.on} onClick={toggleVoice}>
-      音声
+    <button
+      class="tool voice"
+      aria-pressed={v.on}
+      aria-label={v.on ? '音声をとめる' : '音声で数える'}
+      onClick={toggleVoice}
+    >
+      {v.on ? (
+        <>
+          <span class="live-dot" aria-hidden="true" />
+          音声を
+          <br />
+          とめる
+        </>
+      ) : (
+        '音声'
+      )}
     </button>
   );
+}
+
+function KnitNote({ wakeLock }: { wakeLock: boolean }) {
+  const v = useVoice();
+  return <p class="knit-note">{v.notice || (wakeLock ? '編んでいる間は画面がスリープしません' : '')}</p>;
 }
 
 const STATUS_TEXT: Record<VoiceStatus['kind'], string> = {
@@ -222,6 +274,7 @@ function VoicePanel() {
   return (
     <div class="voice-panel" aria-live="polite">
       <div class={`status${isError ? ' error' : ''}`}>
+        <span class="on-label">音声オン</span>
         {v.status.kind === 'error' ? v.status.message : STATUS_TEXT[v.status.kind]}
       </div>
       <div class="heard">
@@ -248,14 +301,13 @@ function TapZone({
   const [pops, setPops] = useState<Pop[]>([]);
   const nextPop = useRef(0);
 
-  // 音声で数えたときも同じ数え方を使う。画面を離れたら音声は止める
+  // 音声で数えたときも同じ数え方を使う
   useEffect(() => {
     voiceCount = onVoiceCount;
   });
   useEffect(
     () => () => {
       voiceCount = null;
-      if (voiceState.on) toggleVoice();
     },
     [],
   );

@@ -6,6 +6,13 @@
   box-sizing: border-box;
 }
 
+/* ダブルタップ・2本指での拡大を止める(ふつうのタップとスクロールは残す) */
+html,
+body,
+* {
+  touch-action: manipulation;
+}
+
 html,
 body {
   margin: 0;
@@ -596,10 +603,42 @@ button {
   opacity: 0.45;
 }
 
-.tool[aria-pressed='true'] {
-  background: var(--blue);
-  color: #ffffff;
-  box-shadow: var(--shadow-blue);
+/* 音声:オンの間はピンクにして「音声を とめる」と出す */
+.tool.voice {
+  position: relative;
+  line-height: 1.25;
+}
+
+.tool.voice[aria-pressed='true'] {
+  background: var(--pink);
+  color: var(--text);
+  box-shadow: 0 2px 0 var(--pink-text);
+}
+
+.tool.voice .live-dot {
+  position: absolute;
+  top: 7px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pink-text);
+  animation: blink var(--live-blink-duration) ease-in-out infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.voice-panel .on-label {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--pink);
+  font-weight: 700;
 }
 
 .knit-note {
@@ -720,5 +759,8 @@ button {
   .sheet,
   .sheet-backdrop {
     animation-duration: 1ms;
+  }
+  .tool.voice .live-dot {
+    animation: none;
   }
 }
