@@ -5,6 +5,9 @@ export const routes = {
   home: () => '#/',
   newWork: () => '#/new',
   knit: (id: string) => `#/knit/${encodeURIComponent(id)}`,
+  record: (id: string) => `#/record/${encodeURIComponent(id)}`,
+  album: () => '#/album',
+  albumWork: (id: string) => `#/album/${encodeURIComponent(id)}`,
 };
 
 export function go(hash: string, replace = false) {
@@ -20,6 +23,8 @@ export function useHash(): string {
   useEffect(() => {
     const onChange = () => setHash(route());
     window.addEventListener('hashchange', onChange);
+    // 最初に表示してから、ここで見張り始めるまでの間に行き先が変わっていても取りこぼさない
+    onChange();
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
   return hash;

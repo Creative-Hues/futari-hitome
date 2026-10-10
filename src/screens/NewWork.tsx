@@ -3,7 +3,15 @@ import { Icon } from '../components/Icon';
 import { Partner } from '../components/Partner';
 import { ANIMAL_NAMES } from '../data/animals';
 import { DEPARTMENTS, WORK_COLORS } from '../data/departments';
-import { addWork, listPartners, meetPartner, type AnimalId, type DepartmentId, type PartnerData } from '../lib/db';
+import {
+  addWork,
+  listPartners,
+  meetPartner,
+  newId,
+  type AnimalId,
+  type DepartmentId,
+  type PartnerData,
+} from '../lib/db';
 import { go, routes } from '../lib/router';
 
 /** 数字だけを取り出す(全角も半角に) */
@@ -14,12 +22,6 @@ function toPositiveInt(s: string): number | null {
 }
 
 const CUSTOM = '__custom__';
-
-/** 作品のID。crypto.randomUUID は https でないと使えないので、なければ代わりの作り方で */
-function newId(): string {
-  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 export function NewWork() {
   const [dept, setDept] = useState<DepartmentId | null>(null);
@@ -68,7 +70,14 @@ export function NewWork() {
       count: { row: 0, stitch: 0 },
       manualProgress: 0,
       history: [],
+      pattern: null,
+      memo: { yarn: '', needle: '', note: '' },
+      impression: '',
+      knitMs: 0,
+      lastCountAt: null,
       startedAt: now,
+      finishedAt: null,
+      giftedTo: null,
       updatedAt: now,
     });
     await meetPartner(partner);

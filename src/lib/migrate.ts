@@ -2,9 +2,9 @@
 // データの形を変えるときは CURRENT_DATA_VERSION を1つ上げ、STEPS に「前の番号 → 次の番号」の直し方を足す。
 import type { IDBPDatabase } from 'idb';
 import { ANIMALS, defaultDecoration } from '../data/animals';
-import type { AnimalId, PartnerData } from './db';
+import type { AnimalId, PartnerData, Work } from './db';
 
-export const CURRENT_DATA_VERSION = 2;
+export const CURRENT_DATA_VERSION = 3;
 
 type AnyDB = IDBPDatabase<any>;
 
@@ -19,6 +19,7 @@ export function newPartner(animal: AnimalId): PartnerData {
     eyeColor: null,
     wearingWorkId: null,
     name: '',
+    knittingWorkId: null,
   };
 }
 
@@ -35,6 +36,30 @@ export function workToV2<T extends object>(w: T): T & { manualProgress: number }
   return { manualProgress: 0, ...w };
 }
 
+/** バージョン2の作品に、2つ目のカウンター・メモ・感想・完成の記録・編んだ時間を足す */
+export function workToV3<T extends object>(w: T) {
+  return {
+    pattern: null,
+    memo: { yarn: '', needle: '', note: '' },
+    impression: '',
+    knitMs: 0,
+    lastCountAt: null,
+    finishedAt: null,
+    giftedTo: null,
+    ...w,
+  };
+}
+
+/** その子の「今編んでいる作品」:編みかけのうち、最後に数えた作品 */
+export function pickKnitting(
+  animal: AnimalId,
+  works: Pick<Work, 'id' | 'partner' | 'status' | 'updatedAt'>[],
+): string | null {
+  const mine = works.filter((w) => w.partner === animal && w.status === 'wip');
+  mine.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  return mine[0]?.id ?? null;
+}
+
 /** STEPS[n] は、バージョン n のデータを n+1 に直す */
 const STEPS: Record<number, (db: AnyDB) => Promise<void>> = {
   // 1 → 2:パートナーの個体データを作る。作品に目標なしの進行度を足す
@@ -43,6 +68,16 @@ const STEPS: Record<number, (db: AnyDB) => Promise<void>> = {
     for (const w of works) await db.put('works', workToV2(w));
     for (const p of partnersFromWorks(works)) {
       if (!(await db.get('partners', p.animal))) await db.put('partners', p);
+    }
+  },
+  // 2 → 3:作品に新しい項目を足す。パートナーに「今編んでいる作品」を足す
+  2: async (db) => {
+    const works = await db.getAll('works');
+    for (const w of works) await db.put('works', workToV3(w));
+    for (const p of await db.getAll('partners')) {
+      if (p.knittingWorkId === undefined) {
+        await db.put('partners', { ...p, knittingWorkId: pickKnitting(p.animal, works) });
+      }
     }
   },
 };

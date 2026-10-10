@@ -1,21 +1,32 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { Celebration } from '../components/Celebration';
 import { Icon } from '../components/Icon';
+import { MemoFields } from '../components/MemoFields';
 import { Partner, type PartnerMotion } from '../components/Partner';
+import { PhotoList } from '../components/PhotoList';
 import { Scene } from '../components/Scene';
-import { Sheet } from '../components/Sheet';
+import { ConfirmSheet, Sheet } from '../components/Sheet';
+import { ANIMAL_NAMES } from '../data/animals';
 import { add, progress, pushHistory, snapProgress, undo, unravel, workProgress, type Count } from '../lib/counter';
 import {
+  completeWork,
   getPartner,
   getSettings,
   getWork,
+  listWorks,
   saveSettings,
   saveWork,
+  setKnitting,
+  type HistoryEntry,
   type PartnerData,
   type Settings,
   type Work,
 } from '../lib/db';
-import { routes } from '../lib/router';
+import { addKnitTime } from '../lib/knitTime';
+import { advancePattern, newPattern, type Pattern } from '../lib/pattern';
+import { go, routes } from '../lib/router';
 import { TapGuard } from '../lib/tapGuard';
+import { useDragSort } from '../lib/useDragSort';
 import { VoiceSession, type VoiceStatus } from '../lib/voice';
 import { useWakeLock } from '../lib/wakeLock';
 
@@ -25,42 +36,81 @@ export function Knit({ id }: { id: string }) {
   const [work, setWork] = useState<Work | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [missing, setMissing] = useState(false);
-  const [sheet, setSheet] = useState<'plus' | 'unravel' | null>(null);
+  const [sheet, setSheet] = useState<'plus' | 'unravel' | 'pattern' | 'memo' | 'complete' | null>(null);
   const [partner, setPartner] = useState<PartnerData | null>(null);
+  /** 編みかけの作品(タブと、同じ子が編んでいる別の作品) */
+  const [wip, setWip] = useState<Work[]>([]);
   const [motion, setMotion] = useState<PartnerMotion | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
   const motionCount = useRef(0);
   const workRef = useRef<Work | null>(null);
   const wakeLock = useWakeLock();
   useVoiceAutoOff();
 
   useEffect(() => {
-    getWork(id).then((w) => {
+    getWork(id).then(async (w) => {
       if (!w) return setMissing(true);
+      // 完成した作品はアルバムで見る
+      if (w.status === 'done') return go(routes.albumWork(w.id), true);
       workRef.current = w;
       setWork(w);
-      getPartner(w.partner).then(setPartner);
+      const [p, works] = await Promise.all([getPartner(w.partner), listWorks()]);
+      const mine = works.filter((x) => x.status === 'wip');
+      setWip(mine);
+      // その子の「今編んでいる作品」がなくなっていたら、この作品を編む
+      const knitting = mine.some((x) => x.id === p.knittingWorkId && x.partner === w.partner);
+      setPartner(knitting ? p : await setKnitting(w.partner, w.id));
     });
     getSettings().then(setSettings);
   }, [id]);
 
-  /** パートナーに編む・ほどくの動きをさせる(数え方には関わらない) */
-  const move = (kind: PartnerMotion['kind']) => setMotion({ kind, n: ++motionCount.current });
+  /** その子が別の作品を編んでいるときは、その作品 */
+  const other =
+    work && partner && partner.knittingWorkId !== work.id
+      ? wip.find((x) => x.id === partner.knittingWorkId)
+      : undefined;
 
-  /** 数を変えて保存する(取り消し用に、変える前の状態を残す)。変わったら true */
-  const change = (next: (c: Count, w: Work) => Count): boolean => {
-    const w = workRef.current;
-    if (!w) return false;
-    const count = next(w.count, w);
-    if (count.row === w.count.row && count.stitch === w.count.stitch) return false;
-    const updated: Work = {
-      ...w,
-      count,
-      history: pushHistory(w.history, w.count),
-      updatedAt: new Date().toISOString(),
-    };
+  /** パートナーに編む・ほどくの動きをさせる(数え方には関わらない。別の作品を編んでいるときは動かない) */
+  const move = (kind: PartnerMotion['kind']) => {
+    if (!other) setMotion({ kind, n: ++motionCount.current });
+  };
+
+  const show = (updated: Work) => {
     workRef.current = updated;
     setWork(updated);
+  };
+
+  /** 数・模様が変わったときの保存。取り消し用に変える前の状態を残し、編んだ時間を足す */
+  const commit = (w: Work, patch: Partial<Work>) => {
+    const t = addKnitTime(w.knitMs, w.lastCountAt, Date.now());
+    const updated: Work = {
+      ...w,
+      ...patch,
+      history: pushHistory<HistoryEntry>(w.history, { ...w.count, repeat: w.pattern?.count }),
+      knitMs: t.knitMs,
+      lastCountAt: t.lastAt,
+      updatedAt: new Date().toISOString(),
+    };
+    show(updated);
     saveWork(updated);
+  };
+
+  /** 取り消しの対象にしない変更(メモ・模様の設定など) */
+  const update = (patch: Partial<Work>) => {
+    const w = workRef.current;
+    if (!w) return;
+    const updated = { ...w, ...patch };
+    show(updated);
+    saveWork(updated);
+  };
+
+  /** 数を変えて保存する。変わったら true */
+  const change = (next: (c: Count, w: Work) => Count): boolean => {
+    const w = workRef.current;
+    if (!w || w.status !== 'wip') return false;
+    const count = next(w.count, w);
+    if (count.row === w.count.row && count.stitch === w.count.stitch) return false;
+    commit(w, { count, pattern: w.pattern && advancePattern(w.pattern, w.count.row, count.row) });
     return true;
   };
 
@@ -68,25 +118,56 @@ export function Knit({ id }: { id: string }) {
     if (change((c, w) => add(c, n, w.stitchesPerRow))) move('knit');
   };
 
+  /** 2つ目のカウンターを手で ±1 */
+  const stepPattern = (d: number) => {
+    const w = workRef.current;
+    if (!w?.pattern || w.status !== 'wip') return;
+    const count = Math.max(0, w.pattern.count + d);
+    if (count !== w.pattern.count) commit(w, { pattern: { ...w.pattern, count } });
+  };
+
   /** 目標なしの作品の「今このくらい」。数とは別なので取り消しの対象にはしない */
   const setManual = (percent: number, save: boolean) => {
     const w = workRef.current;
     if (!w) return;
     const updated: Work = { ...w, manualProgress: percent, updatedAt: save ? new Date().toISOString() : w.updatedAt };
-    workRef.current = updated;
-    setWork(updated);
+    show(updated);
     if (save) saveWork(updated);
   };
 
   const undoLast = () => {
     const w = workRef.current;
-    if (!w) return;
+    if (!w || w.status !== 'wip') return;
     const r = undo(w.history);
     if (!r) return;
-    const updated: Work = { ...w, count: r.count, history: r.history, updatedAt: new Date().toISOString() };
-    workRef.current = updated;
-    setWork(updated);
+    const { repeat, ...count } = r.count;
+    const t = addKnitTime(w.knitMs, w.lastCountAt, Date.now());
+    const updated: Work = {
+      ...w,
+      count,
+      pattern: w.pattern && repeat !== undefined ? { ...w.pattern, count: repeat } : w.pattern,
+      history: r.history,
+      knitMs: t.knitMs,
+      lastCountAt: t.lastAt,
+      updatedAt: new Date().toISOString(),
+    };
+    show(updated);
     saveWork(updated);
+  };
+
+  /** 同じ子のワンタップ切り替え:この作品を編んでもらう(編み地が今の進み具合まで追いつく) */
+  const knitThis = async () => {
+    const w = workRef.current;
+    if (w) setPartner(await setKnitting(w.partner, w.id));
+  };
+
+  const finish = async () => {
+    setSheet(null);
+    stopVoice();
+    const done = await completeWork(id);
+    if (!done) return;
+    show(done);
+    setCelebrating(true);
   };
 
   if (missing) {
@@ -107,6 +188,8 @@ export function Knit({ id }: { id: string }) {
   const p = progress(work.count, work.goalRows, perRow);
   const unit = perRow ? '目' : '段';
   const quick = settings.quickAdds[0];
+  const canFinish = work.status === 'wip' && (p !== null ? p >= 1 : work.manualProgress >= 100);
+  const shown = other ?? work;
 
   return (
     <main class="screen knit">
@@ -114,7 +197,7 @@ export function Knit({ id }: { id: string }) {
         <a class="round-button" href={routes.home()} aria-label="ホームへ戻る">
           <Icon name="back" />
         </a>
-        <h1>{work.name}</h1>
+        {wip.length >= 2 ? <WorkTabs works={wip} current={work.id} /> : <h1>{work.name}</h1>}
       </div>
 
       <section class="meadow" aria-label="パートナー">
@@ -122,12 +205,27 @@ export function Knit({ id }: { id: string }) {
         <Partner
           animal={work.partner}
           decoration={partner?.decoration}
-          color={work.color}
-          progress={workProgress(work)}
+          color={shown.color}
+          progress={workProgress(shown)}
           motion={motion}
           live
           interactive
         />
+        {canFinish && (
+          <button class="finish-button" onClick={() => setSheet('complete')}>
+            完成!
+          </button>
+        )}
+        {other && (
+          <div class="knitting-other">
+            <span>
+              {ANIMAL_NAMES[work.partner]}は「{other.name}」を編んでいます
+            </span>
+            <button class="primary-button small" onClick={knitThis}>
+              こっちを編む
+            </button>
+          </div>
+        )}
       </section>
 
       <div class="stats">
@@ -150,6 +248,13 @@ export function Knit({ id }: { id: string }) {
               <span class="unit"> / {perRow}目</span>
             </span>
           )}
+          <button
+            class={`pattern-chip${work.pattern ? '' : ' empty'}`}
+            aria-label={work.pattern ? `2つ目のカウンター ${work.pattern.name} ${work.pattern.count}回` : '2つ目のカウンターを使う'}
+            onClick={() => setSheet('pattern')}
+          >
+            <span>{work.pattern ? `${work.pattern.name} ${work.pattern.count}回` : '＋ 2つ目'}</span>
+          </button>
         </div>
       </div>
 
@@ -166,6 +271,9 @@ export function Knit({ id }: { id: string }) {
           ほどく
         </button>
         <VoiceButton />
+        <button class="tool" onClick={() => setSheet('memo')}>
+          メモ
+        </button>
       </div>
       <KnitNote wakeLock={wakeLock} />
 
@@ -194,7 +302,190 @@ export function Knit({ id }: { id: string }) {
           onClose={() => setSheet(null)}
         />
       )}
+      {sheet === 'pattern' && (
+        <PatternSheet
+          pattern={work.pattern}
+          row={work.count.row}
+          onUpdate={(pattern) => update({ pattern })}
+          onStep={stepPattern}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === 'memo' && (
+        <Sheet title="メモ" tall onClose={() => setSheet(null)}>
+          <MemoFields memo={work.memo} onChange={(memo) => update({ memo })} />
+          <div class="field">
+            <span class="field-title">編み図の写真</span>
+            <PhotoList workId={work.id} kind="pattern" />
+          </div>
+          <button class="primary-button" onClick={() => setSheet(null)}>
+            とじる
+          </button>
+          <button class="link-button finish-link" onClick={() => setSheet('complete')}>
+            この作品を完成にする
+          </button>
+        </Sheet>
+      )}
+      {sheet === 'complete' && (
+        <ConfirmSheet
+          title="完成にしますか?"
+          message={`「${work.name}」を完成にして、${ANIMAL_NAMES[work.partner]}にわたします。まちがえたときは、アルバムから編みかけに戻せます`}
+          ok="完成!"
+          onOk={finish}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {celebrating && (
+        <Celebration
+          work={work}
+          partner={partner}
+          onRecord={() => go(routes.record(work.id), true)}
+          onLater={() => go(routes.home(), true)}
+        />
+      )}
     </main>
+  );
+}
+
+// ---------- 作品タブ(編みかけが2つ以上のとき) ----------
+
+function WorkTabs({ works, current }: { works: Work[]; current: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const labels = works.map((w) => `${w.kind}・${ANIMAL_NAMES[w.partner]}`);
+
+  // 今の作品のタブが見えるように、タブの列だけを横にずらす
+  useLayoutEffect(() => {
+    const el = box.current;
+    const tab = el?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (el && tab) el.scrollLeft = tab.offsetLeft - (el.clientWidth - tab.offsetWidth) / 2;
+  }, [current]);
+
+  return (
+    <div class="tabs" role="tablist" aria-label="編みかけの作品" ref={box}>
+      {works.map((w, i) => (
+        <button
+          role="tab"
+          aria-selected={w.id === current}
+          onClick={() => w.id !== current && go(routes.knit(w.id), true)}
+        >
+          {labels.filter((l) => l === labels[i]).length > 1 ? w.name : labels[i]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ---------- 2つ目のカウンター ----------
+
+function PatternSheet({
+  pattern,
+  row,
+  onUpdate,
+  onStep,
+  onClose,
+}: {
+  pattern: Pattern | null;
+  row: number;
+  onUpdate: (p: Pattern | null) => void;
+  onStep: (d: number) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(pattern?.name ?? '模様');
+  const [every, setEvery] = useState(pattern?.everyRows ? String(pattern.everyRows) : '');
+
+  /** 名前と「○段ごと」を反映する。「○段ごと」を変えたら、今の段から数え直す */
+  const apply = (n: string, e: string) => {
+    const base = pattern ?? newPattern(row);
+    const everyRows = toPositiveInt(e);
+    onUpdate({
+      ...base,
+      name: n.trim() || '模様',
+      everyRows,
+      baseRow: everyRows !== base.everyRows ? row : base.baseRow,
+    });
+  };
+
+  const fields = (
+    <>
+      <div class="row">
+        <input
+          class="text-input"
+          type="text"
+          aria-label="カウンターの名前"
+          placeholder="模様"
+          value={name}
+          onInput={(e) => {
+            setName(e.currentTarget.value);
+            if (pattern) apply(e.currentTarget.value, every);
+          }}
+        />
+      </div>
+      <div class="row">
+        <input
+          class="text-input number-input"
+          type="text"
+          inputMode="numeric"
+          aria-label="何段ごとに1回進めるか"
+          placeholder="4"
+          value={every}
+          onInput={(e) => {
+            setEvery(e.currentTarget.value);
+            if (pattern) apply(name, e.currentTarget.value);
+          }}
+        />
+        段ごとに1回 自動で進める
+      </div>
+      <p class="field-note">入れなければ、下の「＋1回」で手で数えます</p>
+    </>
+  );
+
+  if (!pattern) {
+    return (
+      <Sheet title="2つ目のカウンター" onClose={onClose}>
+        <p class="sheet-message">模様の繰り返しの回数などを数えます</p>
+        {fields}
+        <div class="actions">
+          <button class="secondary-button" onClick={onClose}>
+            やめる
+          </button>
+          <button class="primary-button" onClick={() => apply(name, every)}>
+            使いはじめる
+          </button>
+        </div>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Sheet title="2つ目のカウンター" onClose={onClose}>
+      <div class="pattern-count">
+        <button class="secondary-button" aria-label="1回もどす" onClick={() => onStep(-1)} disabled={pattern.count === 0}>
+          −1回
+        </button>
+        <span class="value" aria-live="polite">
+          {pattern.count}
+          <span class="unit">回</span>
+        </span>
+        <button class="primary-button" aria-label="1回すすめる" onClick={() => onStep(1)}>
+          ＋1回
+        </button>
+      </div>
+      {fields}
+      <div class="actions">
+        <button
+          class="secondary-button"
+          onClick={() => {
+            onUpdate(null);
+            onClose();
+          }}
+        >
+          使わない
+        </button>
+        <button class="primary-button" onClick={onClose}>
+          とじる
+        </button>
+      </div>
+    </Sheet>
   );
 }
 
@@ -495,6 +786,8 @@ function PlusSheet({
   const [editing, setEditing] = useState(false);
   const n = toPositiveInt(text);
   const registered = n !== null && settings.quickAdds.includes(n);
+  // 登録した数は長押しで並び替え(一番上=一番左の数が、編む画面のボタンに出る)
+  const drag = useDragSort(settings.quickAdds, String, (quickAdds) => onSettings({ ...settings, quickAdds }));
 
   const register = () => {
     if (n === null || registered) return;
@@ -507,8 +800,8 @@ function PlusSheet({
     <Sheet title={`まとめて数える(${unit})`} onClose={onClose}>
       {settings.quickAdds.length > 0 && (
         <div class="row">
-          {settings.quickAdds.map((q) => (
-            <span class="quick">
+          {drag.items.map((q) => (
+            <span class="quick" key={q} {...drag.bind(String(q))}>
               <button class="chip" onClick={() => !editing && onAdd(q)}>
                 ＋{q}
               </button>
@@ -523,6 +816,9 @@ function PlusSheet({
             {editing ? 'できた' : '消す'}
           </button>
         </div>
+      )}
+      {settings.quickAdds.length > 1 && (
+        <p class="field-note">長押しして動かすと並びを変えられます。一番左の数がボタンに出ます</p>
       )}
       <div class="row">
         ＋

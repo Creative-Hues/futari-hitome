@@ -609,7 +609,7 @@ button {
 
 .tools {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   padding-top: 12px;
   flex-shrink: 0;
@@ -1085,5 +1085,720 @@ button {
   }
   .tool.voice .live-dot {
     animation: none;
+  }
+}
+
+/* ======================================================================
+   フェーズ3:作品の管理と記録
+   ====================================================================== */
+
+/* ---------- 下のメニュー ---------- */
+
+.screen.with-nav {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 84px);
+}
+
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  max-width: 480px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  background: var(--card);
+  border-top: 1px solid var(--divider);
+  padding: 6px 12px calc(env(safe-area-inset-bottom) + 10px);
+}
+
+.bottom-nav a {
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.bottom-nav a[aria-current='page'] {
+  color: var(--blue-dark);
+  font-weight: 700;
+}
+
+/* ---------- ドラッグ並び替え ---------- */
+
+[data-sortable] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+[data-dragging] {
+  position: relative;
+  z-index: 6;
+  scale: var(--lift-scale);
+  box-shadow: var(--lift-shadow);
+  transition: none;
+}
+
+.wip-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ---------- 編む画面:タブ ---------- */
+
+.tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 22px;
+  background: var(--segment-bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs [role='tab'] {
+  flex: 1 0 auto;
+  min-width: calc(50% - 2px);
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tabs [role='tab'][aria-selected='true'] {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 0 #e3d8cf;
+}
+
+/* ---------- 編む画面:完成ボタン・同じ子の切り替え ---------- */
+
+.finish-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  height: var(--tap-min);
+  padding: 0 18px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--pink);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 2px 0 var(--pink-text);
+}
+
+.knitting-other {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.knitting-other span {
+  flex: 1;
+  min-width: 0;
+}
+
+.primary-button.small {
+  height: var(--tap-min);
+  padding: 0 14px;
+  border-radius: 22px;
+  font-size: 13px;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+/* ---------- 編む画面:2つ目のカウンター ---------- */
+
+.pattern-chip {
+  align-self: center;
+  min-height: var(--tap-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  display: flex;
+  align-items: center;
+}
+
+.pattern-chip span {
+  padding: 6px 10px;
+  border-radius: 14px;
+  background: var(--pink-soft);
+  color: var(--pink-text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pattern-chip.empty span {
+  background: var(--segment-bg);
+  color: var(--text-faint);
+}
+
+.pattern-count {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.pattern-count .value {
+  min-width: 80px;
+  text-align: center;
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.pattern-count .unit {
+  font-size: 15px;
+  color: var(--text-sub);
+}
+
+.secondary-button:disabled {
+  opacity: 0.45;
+}
+
+/* ---------- シート・入力 ---------- */
+
+.sheet.tall {
+  max-height: 88dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 編む画面は文字を選べないようにしているので、入力欄だけは打てるように戻す */
+.sheet input,
+.sheet textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.sheet-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-sub);
+}
+
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+.textarea {
+  height: auto;
+  padding: 10px 14px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.finish-link {
+  align-self: center;
+  color: var(--pink-text);
+}
+
+.field-note.warn {
+  color: var(--pink-text);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ---------- 写真 ---------- */
+
+.photo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.photo-thumb {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--segment-bg);
+  box-shadow: var(--shadow-card);
+}
+
+.photo-thumb img,
+.album-card .cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.photo-add {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.secondary-button.small {
+  position: relative;
+  height: 48px;
+  border-radius: 24px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* 写真を大きく見る画面 */
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: #2a2530;
+  color: #ffffff;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.viewer-top,
+.viewer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px var(--gutter);
+}
+
+.viewer-bottom {
+  justify-content: center;
+}
+
+.viewer-count {
+  font-size: 14px;
+}
+
+.viewer-spacer {
+  width: var(--tap-min);
+}
+
+.viewer .round-button:disabled {
+  opacity: 0.4;
+}
+
+.viewer-stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  touch-action: none; /* 2本指の動きは、この中だけで写真の拡大に使う */
+}
+
+.viewer-stage img {
+  position: absolute;
+  transform-origin: center;
+  will-change: transform;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.viewer-stage img.animate {
+  transition: transform var(--zoom-button-duration) ease-out;
+}
+
+.zoom-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.viewer-hint {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ---------- 完成のお祝い ---------- */
+
+.celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg);
+  padding: calc(env(safe-area-inset-top) + 18px) var(--gutter) calc(env(safe-area-inset-bottom) + 18px);
+  animation: fade var(--sheet-duration) ease-out;
+}
+
+.celebration-stage {
+  position: relative;
+  flex-shrink: 0;
+  height: min(320px, 46dvh);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  box-shadow: var(--shadow-panel);
+}
+
+.celebration-stage > .partner {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  height: 86%;
+  transform: translateX(-50%);
+}
+
+.celebration-stage .bubble {
+  position: absolute;
+  left: 12px;
+  top: 14px;
+  margin: 0;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 8px 14px;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: var(--shadow-card);
+}
+
+.celebration-text {
+  text-align: center;
+}
+
+.celebration-text h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.celebration-text p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-sub);
+}
+
+.celebration-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.confetti span {
+  position: absolute;
+  top: -14px;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  animation: confetti-fall calc(var(--confetti-duration) * var(--speed)) linear var(--delay) infinite;
+}
+
+@keyframes confetti-fall {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(var(--drift), var(--confetti-fall));
+  }
+}
+
+/* パートナーのお祝いの動き(跳ねる → ゆれる)。手をふり、頭飾りが大きく揺れる */
+.partner[data-celebrate] {
+  --deco-sway-angle: var(--celebrate-deco-angle);
+  --deco-sway-duration: var(--celebrate-deco-duration);
+}
+
+.partner[data-celebrate] .pt-react {
+  animation: celebrate var(--celebrate-duration) ease-in-out var(--celebrate-count);
+}
+
+.partner[data-celebrate] .pt-hand-l {
+  animation: cheer-l var(--celebrate-hand-duration) ease-in-out infinite alternate;
+}
+
+.partner[data-celebrate] .pt-hand-r {
+  animation: cheer-r var(--celebrate-hand-duration) ease-in-out infinite alternate;
+}
+
+@keyframes celebrate {
+  0%,
+  20%,
+  40%,
+  56%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  10%,
+  30% {
+    transform: translateY(calc(-1 * var(--celebrate-hop))) rotate(0);
+  }
+  48% {
+    transform: translateY(calc(-0.5 * var(--celebrate-hop))) rotate(0);
+  }
+  68% {
+    transform: translateY(0) rotate(calc(-1 * var(--celebrate-wiggle)));
+  }
+  80% {
+    transform: translateY(0) rotate(var(--celebrate-wiggle));
+  }
+  90% {
+    transform: translateY(0) rotate(calc(-0.5 * var(--celebrate-wiggle)));
+  }
+}
+
+@keyframes cheer-l {
+  to {
+    transform: rotate(calc(-1 * var(--celebrate-hand-angle)));
+  }
+}
+
+@keyframes cheer-r {
+  to {
+    transform: rotate(var(--celebrate-hand-angle));
+  }
+}
+
+/* ---------- 完成記録・アルバム ---------- */
+
+.record {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px 0 8px;
+}
+
+.field-title {
+  margin: 0;
+}
+
+.gift {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 8px 8px;
+}
+
+.gift .thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--partner-bg);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gift .thumb .partner {
+  width: 52px;
+}
+
+.gift-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.gift-sub {
+  display: block;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.gift-line {
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-sub);
+}
+
+.facts {
+  margin: 0;
+  padding: 4px 16px;
+}
+
+.fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--divider);
+}
+
+.fact:last-child {
+  border-bottom: 0;
+}
+
+.fact dt {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.fact dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fact dd.pre {
+  white-space: pre-wrap;
+  font-weight: 500;
+}
+
+.text-block {
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.album-hero {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  background: var(--partner-bg);
+}
+
+.album-hero .partner {
+  width: 60%;
+}
+
+.link-button.reopen {
+  align-self: center;
+  color: var(--pink-text);
+}
+
+.album-filter {
+  margin-bottom: 14px;
+}
+
+.album-empty {
+  line-height: 1.7;
+}
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.album-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 8px 12px;
+  text-decoration: none;
+  color: var(--text);
+  min-width: 0;
+}
+
+.album-card .cover {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--partner-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.album-card .cover .partner {
+  width: 86%;
+}
+
+.album-card .name {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.album-card .sub {
+  font-size: 11px;
+  color: var(--text-sub);
+}
+
+.storage-note {
+  margin: 24px 0 0;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 「視差効果を減らす」がオンのときは、跳ねず・紙吹雪も出さずに短く */
+  .partner[data-celebrate] .pt-react,
+  .partner[data-celebrate] .pt-hand-l,
+  .partner[data-celebrate] .pt-hand-r {
+    animation: none;
+  }
+  .confetti {
+    display: none;
+  }
+  .celebration {
+    animation-duration: 1ms;
   }
 }

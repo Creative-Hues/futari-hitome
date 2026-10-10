@@ -2,10 +2,23 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { ANIMALS, type DecorationId } from '../data/animals';
 import type { Count } from './counter';
-import { CURRENT_DATA_VERSION, migrate, newPartner } from './migrate';
+import { CURRENT_DATA_VERSION, migrate, newPartner, pickKnitting } from './migrate';
+import type { Pattern } from './pattern';
 
 export type DepartmentId = 'head' | 'neck' | 'body' | 'paw' | 'wear' | 'interior';
 export type AnimalId = 'sheep' | 'cat' | 'stoat' | 'axolotl' | 'seal' | 'otter';
+
+/** 取り消し用に残す、操作前の状態(模様の回数も一緒に戻す) */
+export type HistoryEntry = Count & { repeat?: number };
+
+export interface WorkMemo {
+  /** 使った毛糸 */
+  yarn: string;
+  /** 針の号数 */
+  needle: string;
+  /** 自由メモ */
+  note: string;
+}
 
 export interface Work {
   id: string;
@@ -27,16 +40,28 @@ export interface Work {
   /** 目標なしの作品の「今このくらい」(0〜100%) */
   manualProgress: number;
   /** 取り消し用:操作前の状態(直近50件) */
-  history: Count[];
+  history: HistoryEntry[];
+  /** 2つ目のカウンター。使っていなければ null */
+  pattern: Pattern | null;
+  memo: WorkMemo;
+  /** 感想 */
+  impression: string;
+  /** 編んだ時間の目安(ミリ秒)と、最後に数が変わった時刻 */
+  knitMs: number;
+  lastCountAt: number | null;
   /** 始めた日(ISO文字列) */
   startedAt: string;
+  /** 完成した日(ISO文字列)。編みかけは null */
+  finishedAt: string | null;
+  /** 完成した作品をもらった子。編みかけは null */
+  giftedTo: AnimalId | null;
   updatedAt: string;
 }
 
 export interface Settings {
   key: 'app';
   dataVersion: number;
-  /** 「+N」に登録した数 */
+  /** 「+N」に登録した数(一番上がボタンに出る) */
   quickAdds: number[];
 }
 
@@ -53,16 +78,33 @@ export interface PartnerData {
   wearingWorkId: string | null;
   /** 名前(任意) */
   name: string;
+  /** 今編んでいる作品(同じ子が2つの作品に入っているとき、どちらを編むか) */
+  knittingWorkId: string | null;
+}
+
+export interface Photo {
+  id: string;
+  workId: string;
+  /** 編み図 / 完成写真 */
+  kind: 'pattern' | 'finished';
+  order: number;
+  /** 長辺を縮小した JPEG と、一覧用の小さい版 */
+  blob: Blob;
+  thumb: Blob;
+  width: number;
+  height: number;
+  createdAt: string;
 }
 
 interface FutariDB extends DBSchema {
   works: { key: string; value: Work };
   settings: { key: string; value: Settings };
   partners: { key: string; value: PartnerData };
+  photos: { key: string; value: Photo; indexes: { byWork: string } };
 }
 
 const DB_NAME = 'futari-hitome';
-const DB_SCHEMA_VERSION = 2;
+const DB_SCHEMA_VERSION = 3;
 
 export const DEFAULT_SETTINGS: Settings = {
   key: 'app',
@@ -84,6 +126,10 @@ function db(): Promise<IDBPDatabase<FutariDB>> {
         if (oldVersion < 2) {
           database.createObjectStore('partners', { keyPath: 'animal' });
         }
+        if (oldVersion < 3) {
+          const photos = database.createObjectStore('photos', { keyPath: 'id' });
+          photos.createIndex('byWork', 'workId');
+        }
       },
     }).then(async (database) => {
       await migrate(database);
@@ -93,6 +139,12 @@ function db(): Promise<IDBPDatabase<FutariDB>> {
   return dbPromise;
 }
 
+/** ID。crypto.randomUUID は https でないと使えないので、なければ代わりの作り方で */
+export function newId(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export async function getSettings(): Promise<Settings> {
   return (await (await db()).get('settings', 'app')) ?? { ...DEFAULT_SETTINGS };
 }
@@ -100,6 +152,8 @@ export async function getSettings(): Promise<Settings> {
 export async function saveSettings(settings: Settings): Promise<void> {
   await (await db()).put('settings', settings);
 }
+
+// ---------- 作品 ----------
 
 export async function listWorks(): Promise<Work[]> {
   const works = await (await db()).getAll('works');
@@ -114,14 +168,73 @@ export async function saveWork(work: Work): Promise<void> {
   await (await db()).put('works', work);
 }
 
-/** 新しい作品を一覧の一番上に入れる */
+/** 新しい作品を一覧の一番上に入れ、その子の「今編んでいる作品」にする */
 export async function addWork(work: Omit<Work, 'order'>): Promise<Work> {
   const works = await listWorks();
   const order = works.length ? works[0].order - 1 : 0;
   const saved = { ...work, order };
   await saveWork(saved);
+  await setKnitting(saved.partner, saved.id);
   return saved;
 }
+
+/** 編みかけの作品の並びを、ids の順にする */
+export async function reorderWorks(ids: string[]): Promise<void> {
+  const tx = (await db()).transaction('works', 'readwrite');
+  await Promise.all(
+    ids.map(async (id, i) => {
+      const w = await tx.store.get(id);
+      if (w && w.order !== i) await tx.store.put({ ...w, order: i });
+    }),
+  );
+  await tx.done;
+}
+
+/** 完成にする。もらった子を記録し、その子の「今編んでいる作品」をほかの編みかけに移す */
+export async function completeWork(id: string): Promise<Work | undefined> {
+  const tx = (await db()).transaction(['works', 'partners'], 'readwrite');
+  const works = tx.objectStore('works');
+  const partners = tx.objectStore('partners');
+  const w = await works.get(id);
+  if (!w) return undefined;
+  const now = new Date().toISOString();
+  const done: Work = { ...w, status: 'done', finishedAt: now, giftedTo: w.partner, updatedAt: now };
+  await works.put(done);
+  const p = (await partners.get(w.partner)) ?? newPartner(w.partner);
+  if (!p.knittingWorkId || p.knittingWorkId === id) {
+    const rest = (await works.getAll()).filter((x) => x.id !== id);
+    await partners.put({ ...p, knittingWorkId: pickKnitting(w.partner, rest) });
+  }
+  await tx.done;
+  return done;
+}
+
+/** 完成を取り消して編みかけに戻す(写真・感想・メモ・数は残す) */
+export async function reopenWork(id: string): Promise<Work | undefined> {
+  const tx = (await db()).transaction(['works', 'partners'], 'readwrite');
+  const works = tx.objectStore('works');
+  const partners = tx.objectStore('partners');
+  const w = await works.get(id);
+  if (!w) return undefined;
+  const all = await works.getAll();
+  const top = Math.min(0, ...all.filter((x) => x.status === 'wip').map((x) => x.order));
+  const wip: Work = {
+    ...w,
+    status: 'wip',
+    finishedAt: null,
+    giftedTo: null,
+    order: top - 1,
+    updatedAt: new Date().toISOString(),
+  };
+  await works.put(wip);
+  const p = (await partners.get(w.partner)) ?? newPartner(w.partner);
+  const current = all.find((x) => x.id === p.knittingWorkId);
+  if (!current || current.status !== 'wip') await partners.put({ ...p, knittingWorkId: id });
+  await tx.done;
+  return wip;
+}
+
+// ---------- パートナー ----------
 
 export async function listPartners(): Promise<Record<AnimalId, PartnerData>> {
   const list = await (await db()).getAll('partners');
@@ -139,4 +252,51 @@ export async function meetPartner(animal: AnimalId): Promise<void> {
   const p = await getPartner(animal);
   if (p.met) return;
   await (await db()).put('partners', { ...p, met: true, metAt: new Date().toISOString() });
+}
+
+/** その子の「今編んでいる作品」を変える */
+export async function setKnitting(animal: AnimalId, workId: string): Promise<PartnerData> {
+  const p = { ...(await getPartner(animal)), knittingWorkId: workId };
+  await (await db()).put('partners', p);
+  return p;
+}
+
+// ---------- 写真 ----------
+
+export async function listPhotos(workId: string, kind: Photo['kind']): Promise<Photo[]> {
+  const all = await (await db()).getAllFromIndex('photos', 'byWork', workId);
+  return all.filter((p) => p.kind === kind).sort((a, b) => a.order - b.order);
+}
+
+/** 作品ごとの1枚目の完成写真(アルバムの表紙) */
+export async function coverPhotos(workIds: string[]): Promise<Record<string, Photo>> {
+  const out: Record<string, Photo> = {};
+  for (const id of workIds) {
+    const [first] = await listPhotos(id, 'finished');
+    if (first) out[id] = first;
+  }
+  return out;
+}
+
+export async function addPhoto(photo: Omit<Photo, 'order'>): Promise<Photo> {
+  const now = await listPhotos(photo.workId, photo.kind);
+  const saved = { ...photo, order: now.length ? now[now.length - 1].order + 1 : 0 };
+  await (await db()).put('photos', saved);
+  return saved;
+}
+
+export async function deletePhoto(id: string): Promise<void> {
+  await (await db()).delete('photos', id);
+}
+
+/** 写真の並びを、ids の順にする */
+export async function reorderPhotos(ids: string[]): Promise<void> {
+  const tx = (await db()).transaction('photos', 'readwrite');
+  await Promise.all(
+    ids.map(async (id, i) => {
+      const p = await tx.store.get(id);
+      if (p && p.order !== i) await tx.store.put({ ...p, order: i });
+    }),
+  );
+  await tx.done;
 }

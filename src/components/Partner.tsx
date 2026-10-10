@@ -33,6 +33,7 @@ export function Partner({
   live = false,
   motion = null,
   interactive = false,
+  celebrate = false,
 }: {
   animal: AnimalId;
   decoration?: DecorationId;
@@ -45,6 +46,8 @@ export function Partner({
   motion?: PartnerMotion | null;
   /** タップでしぐさをする */
   interactive?: boolean;
+  /** 完成のお祝い(跳ねる・ゆれる・手をふる・頭飾りが大きく揺れる) */
+  celebrate?: boolean;
 }) {
   const deco = decoration ?? defaultDecoration(animal);
   const markup = useMemo(
@@ -102,6 +105,7 @@ export function Partner({
       data-ready={ready || undefined}
       data-move={motion ? `${motion.kind}-${motion.n % 2 ? 'a' : 'b'}` : undefined}
       data-react={reaction ? `${reaction.name}-${reaction.n % 2 ? 'a' : 'b'}` : undefined}
+      data-celebrate={celebrate || undefined}
       {...(interactive
         ? {
             role: 'button',

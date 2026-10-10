@@ -63,4 +63,24 @@
   --cloud-duration: 8s; /* 雲の上下1往復の長さ */
   --star-twinkle-duration: 4s; /* 星のまたたき1回の長さ */
   --star-twinkle-min: 0.35; /* またたいて一番暗いときの濃さ(0〜1) */
+
+  /* 完成のお祝い */
+  --celebrate-duration: 2.4s; /* 跳ねる・ゆれる、ひとまとまりの長さ */
+  --celebrate-count: 3; /* ひとまとまりをくり返す回数(infinite でずっと) */
+  --celebrate-hop: 22px; /* 跳ねる高さ */
+  --celebrate-wiggle: 8deg; /* 左右にゆれる角度 */
+  --celebrate-hand-angle: 16deg; /* 手(編み針)をふる角度 */
+  --celebrate-hand-duration: 420ms; /* 手をふる1回の長さ */
+  --celebrate-deco-angle: 12deg; /* 頭飾りが大きく揺れる角度 */
+  --celebrate-deco-duration: 1.2s; /* 頭飾りの揺れ1往復の長さ */
+  --confetti-count: 28; /* 紙吹雪の数 */
+  --confetti-duration: 3.2s; /* 紙吹雪が上から下まで落ちる長さ */
+  --confetti-fall: 300px; /* 紙吹雪が落ちる距離 */
+
+  /* ドラッグ並び替え */
+  --lift-scale: 1.04; /* 持ち上げた項目の大きさ */
+  --lift-shadow: 0 10px 22px rgba(63, 56, 70, 0.2); /* 持ち上げた項目の影 */
+
+  /* 写真を大きく見る画面 */
+  --zoom-button-duration: 200ms; /* 1倍・2倍・3倍のボタンで大きさが変わる速さ */
 }

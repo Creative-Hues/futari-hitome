@@ -32,13 +32,13 @@ export function unravel(
 }
 
 /** 取り消し用の履歴に、操作前の状態を積む(古いものから捨てる) */
-export function pushHistory(history: Count[], before: Count, limit = UNDO_LIMIT): Count[] {
-  const next = history.concat([{ row: before.row, stitch: before.stitch }]);
+export function pushHistory<T extends Count>(history: T[], before: T, limit = UNDO_LIMIT): T[] {
+  const next = history.concat([{ ...before }]);
   return next.length > limit ? next.slice(next.length - limit) : next;
 }
 
 /** 直前の操作を1つ戻す。戻せるものがなければ null */
-export function undo(history: Count[]): { count: Count; history: Count[] } | null {
+export function undo<T extends Count>(history: T[]): { count: T; history: T[] } | null {
   if (history.length === 0) return null;
   return { count: history[history.length - 1], history: history.slice(0, -1) };
 }
