@@ -1,0 +1,42 @@
+/* 見た目の設定を1か所に。色・角丸・影・動きの速さはここを変える */
+:root {
+  /* 色 */
+  --bg: #fbf7f2;
+  --text: #3f3846;
+  --text-sub: #6e6577;
+  --text-faint: #8a8192;
+  --card: #ffffff;
+  --blue: #5aa3df;
+  --blue-dark: #3f86c4;
+  --pink: #f2a6b4;
+  --pink-soft: #fde3e9;
+  --pink-text: #a2475a;
+  --line: #5b5263;
+  --track: #f0e8e2;
+  --segment-bg: #f1e9e2;
+  --dashed: #d9cfe0;
+  --partner-bg: #eaf5fd;
+  --divider: #efe6df;
+
+  /* 角丸 */
+  --radius-card: 18px;
+  --radius-panel: 24px;
+  --radius-tap: 28px;
+  --radius-button: 16px;
+
+  /* 影 */
+  --shadow-card: 0 2px 0 #ebe2da;
+  --shadow-panel: 0 3px 0 #ebe2da;
+  --shadow-blue: 0 3px 0 var(--blue-dark);
+
+  /* 余白 */
+  --gutter: 16px;
+  --tap-min: 44px;
+
+  /* 動き(速さ・大きさ) */
+  --pop-duration: 520ms; /* 「+1」が浮かんで消えるまで */
+  --pop-rise: 36px; /* 「+1」が浮かぶ高さ */
+  --press-scale: 0.985; /* タップ場所を押したときの縮み */
+  --press-duration: 90ms;
+  --sheet-duration: 220ms; /* 下から出るシート */
+}

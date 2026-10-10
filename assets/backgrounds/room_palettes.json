@@ -1,0 +1,42 @@
+[
+  {
+    "name": "はじめの部屋",
+    "wall": "#f8efe3",
+    "floor": "#e3c39d",
+    "curtain": "#f6c3cf",
+    "rug": "#f2a6b4",
+    "yarn1": "#5aa3df",
+    "yarn2": "#f2a6b4",
+    "flower": "daisy"
+  },
+  {
+    "name": "ミント",
+    "wall": "#eef6ef",
+    "floor": "#d9c6a8",
+    "curtain": "#a9dcc4",
+    "rug": "#8fcfb0",
+    "yarn1": "#f6c94a",
+    "yarn2": "#ffffff",
+    "flower": "tulip"
+  },
+  {
+    "name": "ラベンダー",
+    "wall": "#f3eef8",
+    "floor": "#cfc3d8",
+    "curtain": "#c9b6e8",
+    "rug": "#b49ddf",
+    "yarn1": "#f2a6b4",
+    "yarn2": "#9fc4f3",
+    "flower": "hydrangea"
+  },
+  {
+    "name": "そらいろ",
+    "wall": "#eef5fb",
+    "floor": "#e8dccb",
+    "curtain": "#a3c6f4",
+    "rug": "#f9c97a",
+    "yarn1": "#f9a03f",
+    "yarn2": "#7cc768",
+    "flower": "cosmos"
+  }
+]

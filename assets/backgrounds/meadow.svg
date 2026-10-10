@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 354 236" width="708" height="472">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f9be8"/>
+      <stop offset="0.6" stop-color="#62bcf4"/>
+      <stop offset="1" stop-color="#b6e2fb"/>
+    </linearGradient>
+    <linearGradient id="hillB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a6dc8a"/><stop offset="1" stop-color="#8fcf73"/>
+    </linearGradient>
+    <linearGradient id="hillF" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#86cc6a"/><stop offset="1" stop-color="#6ab855"/>
+    </linearGradient>
+  </defs>
+  <rect width="354" height="236" fill="url(#sky)"/>
+
+  <!-- big cumulus right -->
+  <g fill="#ffffff">
+    <circle cx="252" cy="112" r="18"/><circle cx="276" cy="96" r="26"/><circle cx="306" cy="84" r="30"/>
+    <circle cx="334" cy="102" r="22"/><circle cx="292" cy="58" r="17"/>
+    <ellipse cx="294" cy="122" rx="62" ry="16"/>
+  </g>
+  <ellipse cx="294" cy="132" rx="54" ry="7" fill="#e2f0fb"/>
+  <!-- small clouds -->
+  <g fill="#ffffff">
+    <circle cx="40" cy="44" r="10"/><circle cx="54" cy="38" r="13"/><circle cx="68" cy="45" r="9"/>
+    <rect x="32" y="45" width="44" height="9" rx="4.5"/>
+    <circle cx="150" cy="28" r="6"/><circle cx="159" cy="24" r="8"/><circle cx="168" cy="29" r="5.5"/>
+    <rect x="146" y="29" width="26" height="6" rx="3"/>
+  </g>
+
+  <!-- hills -->
+  <path d="M-10 168 Q60 128 140 156 Q220 120 364 150 L364 236 L-10 236 Z" fill="url(#hillB)"/>
+  <path d="M-10 190 Q90 160 190 182 Q280 164 364 178 L364 236 L-10 236 Z" fill="url(#hillF)"/>
+  <path d="M-10 190 Q90 160 190 182 Q280 164 364 178" fill="none" stroke="#5aa848" stroke-width="2.5"/>
+
+  <!-- grass tufts -->
+  <g fill="none" stroke="#4f9a4a" stroke-width="2" stroke-linecap="round">
+    <path d="M24 210 l-3 -7 M24 210 l0 -9 M24 210 l3 -7"/>
+    <path d="M96 222 l-3 -7 M96 222 l0 -9 M96 222 l3 -7"/>
+    <path d="M300 214 l-3 -7 M300 214 l0 -9 M300 214 l3 -7"/>
+    <path d="M336 226 l-3 -7 M336 226 l0 -9 M336 226 l3 -7"/>
+    <path d="M250 228 l-3 -6 M250 228 l0 -8 M250 228 l3 -6"/>
+  </g>
+
+  <!-- tulips -->
+  <g stroke="#5b5263" stroke-width="2" stroke-linejoin="round">
+    <g transform="translate(36 194)"><path d="M0 18 V2" stroke="#4f9a4a" stroke-width="2.5"/><path d="M0 14 Q8 10 9 3 Q3 6 0 12 Z" fill="#6dbb5e"/><path d="M-6 -6 L-4 2 Q0 6 4 2 L6 -6 L2 -3 L0 -8 L-2 -3 Z" fill="#e8505c"/></g>
+    <g transform="translate(318 196)"><path d="M0 18 V2" stroke="#4f9a4a" stroke-width="2.5"/><path d="M0 14 Q-8 10 -9 3 Q-3 6 0 12 Z" fill="#6dbb5e"/><path d="M-6 -6 L-4 2 Q0 6 4 2 L6 -6 L2 -3 L0 -8 L-2 -3 Z" fill="#f6c94a"/></g>
+    <g transform="translate(66 212)"><path d="M0 16 V2" stroke="#4f9a4a" stroke-width="2.5"/><path d="M-5 -5 L-3 2 Q0 5 3 2 L5 -5 L1.5 -2.5 L0 -7 L-1.5 -2.5 Z" fill="#f2a6b4"/></g>
+    <g transform="translate(290 220)"><path d="M0 14 V2" stroke="#4f9a4a" stroke-width="2.5"/><path d="M-5 -5 L-3 2 Q0 5 3 2 L5 -5 L1.5 -2.5 L0 -7 L-1.5 -2.5 Z" fill="#c79ae6"/></g>
+  </g>
+  <!-- daisies -->
+  <g stroke="#5b5263" stroke-width="1.5">
+    <g transform="translate(14 222)"><g fill="#fff"><ellipse cx="0" cy="-4" rx="2.2" ry="3.2"/><ellipse cx="0" cy="4" rx="2.2" ry="3.2"/><ellipse cx="-4" cy="0" rx="3.2" ry="2.2"/><ellipse cx="4" cy="0" rx="3.2" ry="2.2"/></g><circle r="2.2" fill="#f6c94a"/></g>
+    <g transform="translate(120 228)"><g fill="#fff"><ellipse cx="0" cy="-4" rx="2.2" ry="3.2"/><ellipse cx="0" cy="4" rx="2.2" ry="3.2"/><ellipse cx="-4" cy="0" rx="3.2" ry="2.2"/><ellipse cx="4" cy="0" rx="3.2" ry="2.2"/></g><circle r="2.2" fill="#f6c94a"/></g>
+    <g transform="translate(268 204)"><g fill="#fff"><ellipse cx="0" cy="-4" rx="2.2" ry="3.2"/><ellipse cx="0" cy="4" rx="2.2" ry="3.2"/><ellipse cx="-4" cy="0" rx="3.2" ry="2.2"/><ellipse cx="4" cy="0" rx="3.2" ry="2.2"/></g><circle r="2.2" fill="#f6c94a"/></g>
+    <g transform="translate(342 206)"><g fill="#fff"><ellipse cx="0" cy="-4" rx="2.2" ry="3.2"/><ellipse cx="0" cy="4" rx="2.2" ry="3.2"/><ellipse cx="-4" cy="0" rx="3.2" ry="2.2"/><ellipse cx="4" cy="0" rx="3.2" ry="2.2"/></g><circle r="2.2" fill="#f6c94a"/></g>
+  </g>
+</svg>

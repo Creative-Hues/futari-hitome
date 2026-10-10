@@ -1,0 +1,40 @@
+{
+  "viewBox": "0 0 240 240",
+  "decorationScale": 1.55,
+  "decorationViewBox": "-22 -40 44 44",
+  "note": "頭飾りは (x,y) に translate して scale(1.55) で重ねる。頭飾りの(0,0)が頭に触れる点",
+  "anchors": {
+    "sheep": {
+      "x": 120,
+      "y": 50
+    },
+    "cat": {
+      "x": 120,
+      "y": 69
+    },
+    "stoat": {
+      "x": 120,
+      "y": 66
+    },
+    "axolotl": {
+      "x": 120,
+      "y": 61
+    },
+    "seal": {
+      "x": 120,
+      "y": 57
+    },
+    "otter": {
+      "x": 120,
+      "y": 64
+    }
+  },
+  "defaultDecoration": {
+    "sheep": "tulip",
+    "cat": "clover",
+    "stoat": "sakura",
+    "axolotl": "coral",
+    "seal": "shell",
+    "otter": "seaweed"
+  }
+}

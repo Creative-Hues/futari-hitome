@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ふたりひとめ なかま</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3f86c4}a:hover{color:#2f6aa3}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #fbf7f2; color: #3f3846; font-family: 'Zen Maru Gothic', sans-serif; font-weight: 500; display: flex; flex-direction: column; overflow: hidden">
+  <header style="display: flex; align-items: center; gap: 10px; padding: 22px 20px 14px">
+    <a href="Main.dc.html" aria-label="ホームへ戻る" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 22px; background: #ffffff; box-shadow: 0 2px 0 #ebe2da; flex-shrink: 0; color: #5b5263">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg>
+    </a>
+    <h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 1px">なかま</h1>
+  </header>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 20px">
+    <sc-for list="{{animals}}" as="a" hint-placeholder-count="6">
+      <button style="display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 8px 12px; background: #ffffff; border: 0; border-radius: 20px; box-shadow: 0 2px 0 #ebe2da; color: #3f3846; font-family: inherit">
+        <span style="display: block; width: 132px; height: 132px; background: #eaf5fd; border-radius: 16px; overflow: hidden">
+          <img src="{{a.img}}" alt="" width="132" height="132" style="display: block; width: 132px; height: 132px">
+        </span>
+        <span style="font-size: 16px; font-weight: 700; margin-top: 6px">{{a.name}}</span>
+        <span style="font-size: 11px; color: #6e6577">{{a.parts}}</span>
+        <span style="font-size: 11px; color: #6e6577">頭飾り:{{a.deco}}</span>
+      </button>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      animals: [
+        { name: 'ひつじ', parts: '頭 ・ 小物やインテリア', deco: 'チューリップ', img: '../../assets/animals/sheep.svg' },
+        { name: 'ねこ', parts: '首 ・ 前足', deco: 'クローバー', img: '../../assets/animals/cat.svg' },
+        { name: 'オコジョ', parts: '首 ・ 身につけるもの', deco: 'サクラ', img: '../../assets/animals/stoat.svg' },
+        { name: 'ウーパールーパー', parts: '胴体 ・ 小物やインテリア', deco: 'サンゴ', img: '../../assets/animals/axolotl.svg' },
+        { name: 'アザラシ', parts: '頭 ・ 胴体', deco: '貝殻', img: '../../assets/animals/seal.svg' },
+        { name: 'ラッコ', parts: '前足 ・ 身につけるもの', deco: '水草', img: '../../assets/animals/otter.svg' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

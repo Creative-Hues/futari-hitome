@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <defs>
+    <radialGradient id="wool" cx="40%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.6" stop-color="#fbf7f4"/>
+      <stop offset="1" stop-color="#e6dcea"/>
+    </radialGradient>
+    <radialGradient id="face" cx="45%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#4f4756"/>
+      <stop offset="1" stop-color="#36303c"/>
+    </radialGradient>
+    <pattern id="stitch" width="9" height="8" patternUnits="userSpaceOnUse">
+      <path d="M1.5 1.5 L4.5 6 L7.5 1.5" fill="none" stroke="#d9cede" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+    </pattern>
+    <pattern id="knit" width="7" height="6" patternUnits="userSpaceOnUse">
+      <rect width="7" height="6" fill="#5aa3df"/>
+      <path d="M1 1 L3.5 5 L6 1" fill="none" stroke="#3f86c4" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </pattern>
+  </defs>
+
+  <!-- shadow -->
+  <ellipse cx="120" cy="214" rx="66" ry="9" fill="#000" opacity="0.10"/>
+
+  <!-- legs -->
+  <rect x="86" y="182" width="20" height="28" rx="10" fill="#4a4350"/>
+  <rect x="134" y="182" width="20" height="28" rx="10" fill="#4a4350"/>
+  <ellipse cx="96" cy="206" rx="10" ry="5" fill="#3a343f"/>
+  <ellipse cx="144" cy="206" rx="10" ry="5" fill="#3a343f"/>
+
+  <!-- wool body -->
+  <g fill="url(#wool)" stroke="#5b5263" stroke-width="3">
+    <circle cx="120" cy="140" r="58"/>
+    <circle cx="72" cy="128" r="22"/><circle cx="168" cy="128" r="22"/>
+    <circle cx="76" cy="160" r="22"/><circle cx="164" cy="160" r="22"/>
+    <circle cx="96" cy="184" r="22"/><circle cx="144" cy="184" r="22"/>
+    <circle cx="120" cy="190" r="22"/>
+  </g>
+  <g fill="url(#wool)">
+    <circle cx="120" cy="140" r="56.5"/>
+    <circle cx="72" cy="128" r="20.5"/><circle cx="168" cy="128" r="20.5"/>
+    <circle cx="76" cy="160" r="20.5"/><circle cx="164" cy="160" r="20.5"/>
+    <circle cx="96" cy="184" r="20.5"/><circle cx="144" cy="184" r="20.5"/>
+    <circle cx="120" cy="190" r="20.5"/>
+  </g>
+  <clipPath id="bodyClip">
+    <circle cx="120" cy="140" r="56.5"/>
+    <circle cx="72" cy="128" r="20.5"/><circle cx="168" cy="128" r="20.5"/>
+    <circle cx="76" cy="160" r="20.5"/><circle cx="164" cy="160" r="20.5"/>
+    <circle cx="96" cy="184" r="20.5"/><circle cx="144" cy="184" r="20.5"/>
+    <circle cx="120" cy="190" r="20.5"/>
+  </clipPath>
+  <rect x="40" y="70" width="160" height="150" fill="url(#stitch)" opacity="0.8" clip-path="url(#bodyClip)"/>
+
+  <!-- ears -->
+  <g transform="rotate(-24 70 86)">
+    <ellipse cx="70" cy="86" rx="20" ry="10" fill="#4a4350" stroke="#2f2a34" stroke-width="3"/>
+    <ellipse cx="72" cy="86" rx="11" ry="5" fill="#f2a6b4"/>
+  </g>
+  <g transform="rotate(24 170 86)">
+    <ellipse cx="170" cy="86" rx="20" ry="10" fill="#4a4350" stroke="#2f2a34" stroke-width="3"/>
+    <ellipse cx="168" cy="86" rx="11" ry="5" fill="#f2a6b4"/>
+  </g>
+
+  <!-- face -->
+  <ellipse cx="120" cy="96" rx="40" ry="36" fill="url(#face)" stroke="#2f2a34" stroke-width="3"/>
+
+  <!-- wool tuft -->
+  <g fill="url(#wool)" stroke="#5b5263" stroke-width="3">
+    <circle cx="96" cy="64" r="15"/><circle cx="120" cy="56" r="17"/><circle cx="144" cy="64" r="15"/>
+  </g>
+  <g fill="url(#wool)">
+    <circle cx="96" cy="64" r="13.5"/><circle cx="120" cy="56" r="15.5"/><circle cx="144" cy="64" r="13.5"/>
+    <ellipse cx="120" cy="70" rx="30" ry="9"/>
+  </g>
+
+  <!-- eyes: small round white dots, set wide -->
+  <circle cx="100" cy="99" r="3" fill="#fdfbff"/>
+  <circle cx="140" cy="99" r="3" fill="#fdfbff"/>
+
+  <!-- cheeks / nose -->
+  <ellipse cx="92" cy="109" rx="6" ry="3.2" fill="#f2a6b4" opacity="0.75"/>
+  <ellipse cx="148" cy="109" rx="6" ry="3.2" fill="#f2a6b4" opacity="0.75"/>
+  <path d="M117 110 Q120 113 123 110 Z" fill="#f2a6b4" stroke="#f2a6b4" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M120 113 V116 M120 116 Q117 119.5 114 117.5 M120 116 Q123 119.5 126 117.5" fill="none" stroke="#c7bcd0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- knitting piece -->
+  <rect x="104" y="146" width="32" height="30" rx="3" fill="url(#knit)" stroke="#2f6aa3" stroke-width="2.5"/>
+
+  <!-- needles -->
+  <g stroke-linecap="round">
+    <line x1="80" y1="168" x2="138" y2="134" stroke="#2f2a34" stroke-width="6"/>
+    <line x1="80" y1="168" x2="138" y2="134" stroke="#c9a46a" stroke-width="3.5"/>
+    <line x1="160" y1="168" x2="102" y2="134" stroke="#2f2a34" stroke-width="6"/>
+    <line x1="160" y1="168" x2="102" y2="134" stroke="#c9a46a" stroke-width="3.5"/>
+  </g>
+  <circle cx="79" cy="169" r="5.5" fill="#e45864" stroke="#2f2a34" stroke-width="2.5"/>
+  <circle cx="161" cy="169" r="5.5" fill="#e45864" stroke="#2f2a34" stroke-width="2.5"/>
+
+  <!-- hooves holding needles -->
+  <ellipse cx="102" cy="150" rx="10" ry="9" fill="#4a4350" stroke="#2f2a34" stroke-width="3"/>
+  <ellipse cx="138" cy="150" rx="10" ry="9" fill="#4a4350" stroke="#2f2a34" stroke-width="3"/>
+
+</svg>

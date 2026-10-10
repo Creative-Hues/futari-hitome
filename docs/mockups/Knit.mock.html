@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ふたりひとめ 編む画面</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3f86c4}a:hover{color:#2f6aa3}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #fbf7f2; color: #3f3846; font-family: 'Zen Maru Gothic', sans-serif; font-weight: 500; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="display: flex; align-items: center; gap: 8px; padding: 18px 16px 0">
+    <a href="Main.dc.html" aria-label="ホームへ戻る" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 22px; background: #ffffff; box-shadow: 0 2px 0 #ebe2da; flex-shrink: 0; color: #5b5263">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg>
+    </a>
+    <div role="tablist" aria-label="編みかけの作品" style="display: flex; gap: 4px; flex: 1; min-width: 0; background: #f1e9e2; border-radius: 22px; padding: 4px">
+      <button role="tab" aria-selected="true" style="flex: 1; height: 36px; border: 0; border-radius: 18px; background: #ffffff; color: #3f3846; font-family: inherit; font-weight: 700; font-size: 13px; box-shadow: 0 1px 0 #e3d8cf">マフラー・ひつじ</button>
+      <button role="tab" aria-selected="false" style="flex: 1; height: 36px; border: 0; border-radius: 18px; background: transparent; color: #8a8192; font-family: inherit; font-weight: 700; font-size: 13px">帽子・アザラシ</button>
+    </div>
+  </div>
+
+  <section aria-label="パートナー" style="margin: 12px 16px 0; height: 236px; border-radius: 24px; position: relative; overflow: hidden; box-shadow: 0 3px 0 #ebe2da">
+    <img src="../../assets/backgrounds/meadow.svg" alt="" width="358" height="239" style="position: absolute; left: 0; top: 0; width: 358px; height: 239px">
+    <svg viewBox="0 0 240 240" width="210" height="210" aria-label="ひつじ" role="img" style="position: absolute; left: 50%; bottom: 0; transform: translate(-50%, {{bob}}px)">
+  <defs>
+    <radialGradient id="wool" cx="40%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.6" stop-color="#fbf7f4"/>
+      <stop offset="1" stop-color="#e6dcea"/>
+    </radialGradient>
+    <radialGradient id="face" cx="45%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#4f4756"/>
+      <stop offset="1" stop-color="#36303c"/>
+    </radialGradient>
+    <pattern id="stitch" width="9" height="8" patternUnits="userSpaceOnUse">
+      <path d="M1.5 1.5 L4.5 6 L7.5 1.5" fill="none" stroke="#d9cede" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+    </pattern>
+    <pattern id="knit" width="7" height="6" patternUnits="userSpaceOnUse">
+      <rect width="7" height="6" fill="#5aa3df"/>
+      <path d="M1 1 L3.5 5 L6 1" fill="none" stroke="#3f86c4" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </pattern>
+  </defs>
+
+  <!-- shadow -->
+  <ellipse cx="120" cy="214" rx="66" ry="9" fill="#000" opacity="0.10"/>
+
+  <!-- legs -->
+  <rect x="86" y="182" width="20" height="28" rx="10" fill="#4a4350"/>
+  <rect x="134" y="182" width="20" height="28" rx="10" fill="#4a4350"/>
+  <ellipse cx="96" cy="206" rx="10" ry="5" fill="#3a343f"/>
+  <ellipse cx="144" cy="206" rx="10" ry="5" fill="#3a343f"/>
+
+  <!-- wool body -->
+  <g fill="url(#wool)" stroke="#5b5263" stroke-width="3">
+    <circle cx="120" cy="140" r="58"/>
+    <circle cx="72" cy="128" r="22"/><circle cx="168" cy="128" r="22"/>
+    <circle cx="76" cy="160" r="22"/><circle cx="164" cy="160" r="22"/>
+    <circle cx="96" cy="184" r="22"/><circle cx="144" cy="184" r="22"/>
+    <circle cx="120" cy="190" r="22"/>
+  </g>
+  <g fill="url(#wool)">
+    <circle cx="120" cy="140" r="56.5"/>
+    <circle cx="72" cy="128" r="20.5"/><circle cx="168" cy="128" r="20.5"/>
+    <circle cx="76" cy="160" r="20.5"/><circle cx="164" cy="160" r="20.5"/>
+    <circle cx="96" cy="184" r="20.5"/><circle cx="144" cy="184" r="20.5"/>
+    <circle cx="120" cy="190" r="20.5"/>
+  </g>
+  <clipPath id="bodyClip">
+    <circle cx="120" cy="140" r="56.5"/>
+    <circle cx="72" cy="128" r="20.5"/><circle cx="168" cy="128" r="20.5"/>
+    <circle cx="76" cy="160" r="20.5"/><circle cx="164" cy="160" r="20.5"/>
+    <circle cx="96" cy="184" r="20.5"/><circle cx="144" cy="184" r="20.5"/>
+    <circle cx="120" cy="190" r="20.5"/>
+  </clipPath>
+  <rect x="40" y="70" width="160" height="150" fill="url(#stitch)" opacity="0.8" clip-path="url(#bodyClip)"/>
+
+  <!-- ears -->
+  <g transform="rotate(-24 70 86)">
+    <ellipse cx="70" cy="86" rx="20" ry="10" fill="#4a4350" stroke="#2f2a34" stroke-width="3"/>
+    <ellipse cx="72" cy="86" rx="11" ry="5" fill="#f2a6b4"/>
+  </g>
+  <g transform="rotate(24 170 86)">
+    <ellipse cx="170" cy="86" rx="20" ry="10" fill="#4a4350" stroke="#2f2a34" stroke-width="3"/>
+    <ellipse cx="168" cy="86" rx="11" ry="5" fill="#f2a6b4"/>
+  </g>
+
+  <!-- face -->
+  <ellipse cx="120" cy="96" rx="40" ry="36" fill="url(#face)" stroke="#2f2a34" stroke-width="3"/>
+
+  <!-- wool tuft -->
+  <g fill="url(#wool)" stroke="#5b5263" stroke-width="3">
+    <circle cx="96" cy="64" r="15"/><circle cx="120" cy="56" r="17"/><circle cx="144" cy="64" r="15"/>
+  </g>
+  <g fill="url(#wool)">
+    <circle cx="96" cy="64" r="13.5"/><circle cx="120" cy="56" r="15.5"/><circle cx="144" cy="64" r="13.5"/>
+    <ellipse cx="120" cy="70" rx="30" ry="9"/>
+  </g>
+
+  <!-- eyes: small round white dots, set wide -->
+  <circle cx="100" cy="99" r="3" fill="#fdfbff"/>
+  <circle cx="140" cy="99" r="3" fill="#fdfbff"/>
+
+  <!-- cheeks / nose -->
+  <ellipse cx="92" cy="109" rx="6" ry="3.2" fill="#f2a6b4" opacity="0.75"/>
+  <ellipse cx="148" cy="109" rx="6" ry="3.2" fill="#f2a6b4" opacity="0.75"/>
+  <path d="M117 110 Q120 113 123 110 Z" fill="#f2a6b4" stroke="#f2a6b4" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M120 113 V116 M120 116 Q117 119.5 114 117.5 M120 116 Q123 119.5 126 117.5" fill="none" stroke="#c7bcd0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- knitting piece -->
+  <rect x="104" y="146" width="32" height="{{knitH}}" rx="3" fill="url(#knit)" stroke="#2f6aa3" stroke-width="2.5"/>
+
+  <g transform="rotate({{rotL}} 102 150)">
+    <line x1="80" y1="168" x2="138" y2="134" stroke="#2f2a34" stroke-width="6" stroke-linecap="round"/>
+    <line x1="80" y1="168" x2="138" y2="134" stroke="#c9a46a" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="79" cy="169" r="5.5" fill="#e45864" stroke="#2f2a34" stroke-width="2.5"/>
+    <ellipse cx="102" cy="150" rx="10" ry="9" fill="#4a4350" stroke="#2f2a34" stroke-width="3"/>
+  </g>
+  <g transform="rotate({{rotR}} 138 150)">
+    <line x1="160" y1="168" x2="102" y2="134" stroke="#2f2a34" stroke-width="6" stroke-linecap="round"/>
+    <line x1="160" y1="168" x2="102" y2="134" stroke="#c9a46a" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="161" cy="169" r="5.5" fill="#e45864" stroke="#2f2a34" stroke-width="2.5"/>
+    <ellipse cx="138" cy="150" rx="10" ry="9" fill="#4a4350" stroke="#2f2a34" stroke-width="3"/>
+  </g>
+  <!-- tulip -->
+  <g transform="translate(120 20)">
+    <path d="M0 26 Q2 14 0 4" stroke="#4f9a4a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M1 22 Q12 16 14 8 Q4 12 1 20 Z" fill="#6dbb5e" stroke="#2f2a34" stroke-width="2"/>
+    <path d="M-10 -6 L-6 4 Q0 10 6 4 L10 -6 L4 -1 L0 -9 L-4 -1 Z" fill="#e8505c" stroke="#2f2a34" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M-4 0 Q-3 -3 -1 -4" stroke="#ff9aa2" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>
+  </section>
+
+  <div style="margin: 12px 16px 0; display: flex; flex-direction: column; gap: 8px">
+    <div style="height: 10px; background: #f0e8e2; border-radius: 5px; overflow: hidden"><div style="height: 100%; width: {{progress}}; background: #5aa3df; border-radius: 5px"></div></div>
+    <div style="display: flex; align-items: baseline; justify-content: space-between">
+      <span style="font-size: 34px; font-weight: 700; line-height: 1">{{row}}<span style="font-size: 15px; color: #6e6577"> / 80段</span></span>
+      <span style="font-size: 22px; font-weight: 700">{{stitch}}<span style="font-size: 13px; color: #6e6577"> / 30目</span></span>
+      <span style="font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 14px; background: #fde3e9; color: #a2475a">模様 {{pattern}}回</span>
+    </div>
+  </div>
+
+  <button onClick="{{tap}}" aria-label="1目カウント" style="margin: 12px 16px 0; flex: 1; border: 2px dashed #d9cfe0; border-radius: 28px; background: #ffffff; color: #3f3846; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-family: inherit">
+    <span style="font-size: 28px; font-weight: 700; letter-spacing: 2px">ひとめ ＋1</span>
+    <span style="font-size: 13px; color: #8a8192">どこをタップしても数えます</span>
+  </button>
+
+  <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 12px 16px 6px">
+    <button onClick="{{undo}}" style="height: 50px; border: 0; border-radius: 16px; background: #ffffff; box-shadow: 0 2px 0 #ebe2da; font-family: inherit; font-size: 12px; font-weight: 700; color: #5b5263">取り消し</button>
+    <button onClick="{{plus10}}" style="height: 50px; border: 0; border-radius: 16px; background: #ffffff; box-shadow: 0 2px 0 #ebe2da; font-family: inherit; font-size: 12px; font-weight: 700; color: #5b5263">＋10</button>
+    <button onClick="{{unravel}}" style="height: 50px; border: 0; border-radius: 16px; background: #ffffff; box-shadow: 0 2px 0 #ebe2da; font-family: inherit; font-size: 12px; font-weight: 700; color: #5b5263">ほどく</button>
+    <button style="height: 50px; border: 0; border-radius: 16px; background: #ffffff; box-shadow: 0 2px 0 #ebe2da; font-family: inherit; font-size: 12px; font-weight: 700; color: #5b5263">音声</button>
+    <button style="height: 50px; border: 0; border-radius: 16px; background: #ffffff; box-shadow: 0 2px 0 #ebe2da; font-family: inherit; font-size: 12px; font-weight: 700; color: #5b5263">メモ</button>
+  </div>
+  <p style="margin: 0 0 14px; text-align: center; font-size: 11px; color: #8a8192">編んでいる間は画面がスリープしません</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { row: 42, stitch: 17, pose: 0, history: [] };
+  }
+  apply(n) {
+    var s = this.state;
+    var total = s.row * 30 + s.stitch + n;
+    if (total < 0) total = 0;
+    if (total > 80 * 30) total = 80 * 30;
+    this.setState({
+      row: Math.floor(total / 30),
+      stitch: total % 30,
+      pose: s.pose ? 0 : 1,
+      history: s.history.concat([[s.row, s.stitch]]).slice(-50)
+    });
+  }
+  renderVals() {
+    var s = this.state;
+    var done = (s.row * 30 + s.stitch) / (80 * 30);
+    var self = this;
+    return {
+      row: s.row,
+      stitch: s.stitch,
+      pattern: Math.floor(s.row / 4),
+      progress: Math.round(done * 100) + '%',
+      knitH: Math.max(4, Math.round(done * 44)),
+      rotL: s.pose ? -7 : 0,
+      rotR: s.pose ? 0 : 7,
+      bob: s.pose ? -2 : 0,
+      tap: function () { self.apply(1); },
+      plus10: function () { self.apply(10); },
+      unravel: function () { self.apply(-30); },
+      undo: function () {
+        var h = self.state.history;
+        if (!h.length) return;
+        var last = h[h.length - 1];
+        self.setState({ row: last[0], stitch: last[1], history: h.slice(0, -1) });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
