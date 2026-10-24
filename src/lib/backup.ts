@@ -96,7 +96,10 @@ function dataUrlToBlob(v: unknown): Blob | null {
   }
 }
 
-function checkWork(w: unknown) {
+const isCountObj = (c: unknown) => isObj(c) && isCount(c.row) && isCount(c.stitch);
+
+/** 作品の中身を確かめる。バージョン7からは数をパーツごとに持つ */
+function checkWork(w: unknown, dataVersion: number) {
   if (
     !isObj(w) ||
     !isStr(w.id) ||
@@ -104,12 +107,22 @@ function checkWork(w: unknown) {
     !isStr(w.name) ||
     !DEPT_IDS.includes(w.department) ||
     !ANIMAL_IDS.includes(w.partner) ||
-    !['wip', 'paused', 'done'].includes(w.status) ||
-    !isObj(w.count) ||
-    !isCount(w.count.row) ||
-    !isCount(w.count.stitch)
+    !['wip', 'paused', 'done'].includes(w.status)
   ) {
     throw new BackupError(REASONS.broken('作品'));
+  }
+  if (dataVersion < 7) {
+    if (!isCountObj(w.count)) throw new BackupError(REASONS.broken('作品'));
+    return;
+  }
+  const parts: unknown = w.parts;
+  if (
+    !Array.isArray(parts) ||
+    parts.length === 0 ||
+    !parts.every((p) => isObj(p) && isStr(p.id) && !!p.id && isCountObj(p.count) && Array.isArray(p.history)) ||
+    new Set(parts.map((p) => p.id)).size !== parts.length
+  ) {
+    throw new BackupError(REASONS.broken('作品のパーツ'));
   }
 }
 
@@ -161,7 +174,7 @@ async function parse(text: string): Promise<{ snapshot: Snapshot; summary: Backu
 
   // アプリが動くのに必要なところだけ確かめる(知らない項目はそのまま残す)
   const works: any[] = file.works;
-  works.forEach(checkWork);
+  works.forEach((w) => checkWork(w, dataVersion));
   const workIds = new Set(works.map((w) => w.id));
   if (workIds.size !== works.length) throw new BackupError(REASONS.broken('作品'));
   const partners: any[] = file.partners ?? [];

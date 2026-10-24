@@ -1,22 +1,29 @@
+import { createPortal } from 'preact/compat';
 import { useState } from 'preact/hooks';
-import { Icon } from '../components/Icon';
+import { BackButton } from '../components/BackButton';
 import { InteriorShapePicker } from '../components/InteriorShapePicker';
 import { Partner } from '../components/Partner';
+import { GoalFields, PartForm, PartsEditor, toPositiveInt } from '../components/PartsEditor';
+import { ToolPicker } from '../components/ToolPicker';
 import { ANIMAL_NAMES } from '../data/animals';
 import { DEPARTMENTS, WORK_COLORS } from '../data/departments';
+import { PARTS_NOTE } from '../data/help';
 import { defaultInteriorShape, type InteriorShape } from '../data/wear';
-import { addWork, meetPartner, newId, type AnimalId, type DepartmentId } from '../lib/db';
+import { addWork, meetPartner, newId, type AnimalId, type DepartmentId, type KnitTool, type Part, type Work } from '../lib/db';
 import { useLooks } from '../lib/looks';
+import { newPart } from '../lib/parts';
 import { go, routes } from '../lib/router';
 
-/** 数字だけを取り出す(全角も半角に) */
-function toPositiveInt(s: string): number | null {
-  const half = s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
-  const n = parseInt(half, 10);
-  return Number.isFinite(n) && n > 0 ? n : null;
+/** 前に作った作品(いちばん新しく始めた作品)の編み方。作品がなければ棒針 */
+export function lastTool(works: Pick<Work, 'startedAt' | 'tool'>[]): KnitTool {
+  const last = works.reduce<Pick<Work, 'startedAt' | 'tool'> | null>((a, w) => (!a || w.startedAt > a.startedAt ? w : a), null);
+  return last?.tool ?? 'knit';
 }
 
 const CUSTOM = '__custom__';
+
+/** 部門のボタンで2行にするときの区切り(ここでだけ折り返す) */
+const breakable = (name: string) => name.replace('身につける', '身につける\u200b').replace('小物や', '小物や\u200b');
 
 export function NewWork() {
   const [dept, setDept] = useState<DepartmentId | null>(null);
@@ -31,15 +38,21 @@ export function NewWork() {
   const [partner, setPartner] = useState<AnimalId | null>(null);
   /** 部屋に飾るときの絵。自分で選ぶまでは種類名に合わせる */
   const [pickedShape, setPickedShape] = useState<InteriorShape | null>(null);
+  const [pickedTool, setPickedTool] = useState<KnitTool | null>(null);
+  /** パーツに分けたとき(分けないときは null) */
+  const [parts, setParts] = useState<Part[] | null>(null);
+  const [firstPart, setFirstPart] = useState(false);
   const looks = useLooks();
   const partners = looks?.partners;
+  const tool = pickedTool ?? lastTool(looks?.works ?? []);
 
   const department = DEPARTMENTS.find((d) => d.id === dept);
   const kind = kindChoice === CUSTOM ? customKind.trim() : (kindChoice ?? '');
   const goalRows = hasGoal ? toPositiveInt(rows) : null;
   const stitchesPerRow = toPositiveInt(perRow);
   const shape = pickedShape ?? defaultInteriorShape(kind);
-  const ready = !!dept && !!partner && !!kind && (!hasGoal || goalRows !== null) && !saving;
+  const goalReady = parts ? parts.length > 0 : !hasGoal || goalRows !== null;
+  const ready = !!dept && !!partner && !!kind && goalReady && !saving;
 
   const selectDept = (id: DepartmentId) => {
     setDept(id);
@@ -53,6 +66,7 @@ export function NewWork() {
     if (!ready || !dept || !partner) return;
     setSaving(true);
     const now = new Date().toISOString();
+    const workParts = parts ?? [newPart({ goalRows, stitchesPerRow })];
     const work = await addWork({
       id: newId(),
       name: name.trim() || kind,
@@ -61,15 +75,11 @@ export function NewWork() {
       partner,
       status: 'wip',
       color,
-      goalRows,
-      stitchesPerRow,
-      count: { row: 0, stitch: 0 },
-      manualProgress: 0,
-      history: [],
-      pattern: null,
+      tool,
+      parts: workParts,
+      currentPartId: workParts[0].id,
       memo: { yarn: '', needle: '', note: '' },
       impression: '',
-      knitMs: 0,
       lastCountAt: null,
       startedAt: now,
       finishedAt: null,
@@ -85,9 +95,7 @@ export function NewWork() {
   return (
     <main class="screen">
       <div class="top-bar">
-        <a class="round-button" href={routes.home()} aria-label="ホームへ戻る">
-          <Icon name="back" />
-        </a>
+        <BackButton fallback={routes.home()} />
         <h1>新しく編む</h1>
       </div>
 
@@ -102,7 +110,7 @@ export function NewWork() {
                 aria-pressed={dept === d.id}
                 onClick={() => selectDept(d.id)}
               >
-                {d.name}
+                {breakable(d.name)}
               </button>
             ))}
           </div>
@@ -188,44 +196,41 @@ export function NewWork() {
           <p class="field-note">入れなければ「{kind || '編むもの'}」になります</p>
         </div>
 
+        <ToolPicker value={tool} onChange={setPickedTool} />
+
+        {!parts && (
+          <GoalFields
+            hasGoal={hasGoal}
+            rows={rows}
+            perRow={perRow}
+            onHasGoal={setHasGoal}
+            onRows={setRows}
+            onPerRow={setPerRow}
+          />
+        )}
+
         <fieldset class="field">
-          <legend>目標</legend>
-          <div class="chips">
-            <button type="button" class="chip" aria-pressed={hasGoal} onClick={() => setHasGoal(true)}>
-              段数を決める
-            </button>
-            <button type="button" class="chip" aria-pressed={!hasGoal} onClick={() => setHasGoal(false)}>
-              目標なし
-            </button>
-          </div>
-          {hasGoal && (
-            <label class="goal-row">
-              <input
-                class="text-input number-input"
-                type="text"
-                inputMode="numeric"
-                placeholder="80"
-                value={rows}
-                onInput={(e) => setRows(e.currentTarget.value)}
+          <legend>パーツ</legend>
+          {parts ? (
+            <>
+              <PartsEditor
+                parts={parts}
+                onChange={setParts}
+                onRemove={(id) => setParts(parts.length > 1 ? parts.filter((p) => p.id !== id) : parts)}
               />
-              段まで
-            </label>
+              <p class="field-note">目標はパーツごとに入れます。あとから編む画面のメモでも直せます</p>
+              <button type="button" class="link-button" onClick={() => setParts(null)}>
+                パーツに分けない
+              </button>
+            </>
+          ) : (
+            <>
+              <p class="field-note">{PARTS_NOTE}。あとから編む画面のメモでも分けられます</p>
+              <button type="button" class="secondary-button" onClick={() => setFirstPart(true)}>
+                パーツに分ける
+              </button>
+            </>
           )}
-          <label class="goal-row">
-            1段
-            <input
-              class="text-input number-input"
-              type="text"
-              inputMode="numeric"
-              placeholder="30"
-              value={perRow}
-              onInput={(e) => setPerRow(e.currentTarget.value)}
-            />
-            目
-          </label>
-          <p class="field-note">
-            1段の目数を入れると、目を数え終わったとき段が自動で進みます。入れなければ段だけを数えます
-          </p>
         </fieldset>
 
         <fieldset class="field">
@@ -248,6 +253,25 @@ export function NewWork() {
           編みはじめる
         </button>
       </form>
+
+      {firstPart &&
+        createPortal(
+          <PartForm
+            part={newPart({ goalRows, stitchesPerRow })}
+            isNew
+            groups={[]}
+            canRemove={false}
+            title="パーツに分ける"
+            ok="次へ"
+            note="最初のパーツを入れてください(例:まとまり「右手」、パーツ「親指」)"
+            onSave={(p) => {
+              setParts([p]);
+              setFirstPart(false);
+            }}
+            onClose={() => setFirstPart(false)}
+          />,
+          document.body,
+        )}
     </main>
   );
 }

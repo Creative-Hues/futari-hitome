@@ -369,10 +369,12 @@ button {
 }
 
 .dept-grid .chip {
-  padding: 8px 4px;
+  padding: 6px 4px;
   font-size: 13px;
-  white-space: nowrap;
   line-height: 1.3;
+  /* 「身につける/もの」「小物や/インテリア」の区切りでだけ2行にする(文字の途中では折り返さない) */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .goal-row {
@@ -524,7 +526,8 @@ button {
   position: relative;
   margin-top: 12px;
   flex: 1;
-  min-height: 160px;
+  /* 小さい画面(320×568)でも、下のボタンが画面の外に出ないように */
+  min-height: 110px;
   border: 2px dashed var(--dashed);
   border-radius: var(--radius-tap);
   background: var(--card);
@@ -617,11 +620,15 @@ button {
 
 .tool {
   height: 50px;
+  padding: 0;
   border: 0;
   border-radius: var(--radius-button);
   background: var(--card);
   box-shadow: var(--shadow-card);
-  font-size: 13px;
+  /* 320px の幅でも「取り消し」が1行に入るよう、狭いときだけ少し小さく */
+  font-size: clamp(12px, 3.8vw, 13px);
+  letter-spacing: 0;
+  white-space: nowrap;
   font-weight: 700;
   color: var(--line);
 }
@@ -703,6 +710,11 @@ button {
   user-select: none;
 }
 
+/* 高いシートで中身が多いときも、ボタンがつぶれずにスクロールする */
+.sheet > * {
+  flex-shrink: 0;
+}
+
 .sheet h2 {
   margin: 0;
   font-size: 18px;
@@ -763,6 +775,7 @@ button {
   border: 0;
   background: none;
   min-height: var(--tap-min);
+  min-width: var(--tap-min);
   padding: 0 4px;
   font-size: 14px;
   font-weight: 700;
@@ -1160,8 +1173,8 @@ button {
   flex: 1;
   min-width: 0;
   display: flex;
-  gap: 4px;
-  padding: 4px;
+  gap: 0;
+  padding: 0 0;
   border-radius: 22px;
   background: var(--segment-bg);
   overflow-x: auto;
@@ -1174,11 +1187,13 @@ button {
 
 .tabs [role='tab'] {
   flex: 1 0 auto;
-  min-width: calc(50% - 2px);
-  height: 36px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 18px;
+  min-width: 50%;
+  /* 押せる高さは44px。見た目の白い丸は、まわりの4pxを外した36px(今までと同じ) */
+  height: var(--tap-min);
+  padding: 0 14px;
+  border: 4px solid transparent;
+  background-clip: padding-box;
+  border-radius: 22px;
   background: transparent;
   color: var(--text-faint);
   font-size: 13px;
@@ -1188,8 +1203,9 @@ button {
 
 .tabs [role='tab'][aria-selected='true'] {
   background: var(--card);
+  background-clip: padding-box;
   color: var(--text);
-  box-shadow: 0 1px 0 #e3d8cf;
+  box-shadow: inset 0 -1px 0 #e3d8cf;
 }
 
 /* ---------- 編む画面:完成ボタン・同じ子の切り替え ---------- */
@@ -2483,4 +2499,195 @@ textarea {
 
 .paused-actions .link-button.delete-link {
   margin-top: 0;
+}
+
+/* ---------- 編む画面:編み図の小さな写真 ---------- */
+
+/* 原っぱの左上(右上は「完成!」、下は同じ子の切り替えの帯、真ん中はパートナー) */
+.pattern-thumb {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 3px solid #ffffff;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: 0 2px 0 rgba(63, 56, 70, 0.18);
+}
+
+.pattern-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- 編む画面:パーツ ---------- */
+
+.part-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.part-chip {
+  min-width: 0;
+  min-height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px 0 14px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.part-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.part-chip svg {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+/* パーツを切り替えたとき、原っぱの上に少しだけ出す */
+.part-note {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: part-note var(--part-note-duration) ease-out forwards;
+}
+
+@keyframes part-note {
+  0% {
+    opacity: 0;
+  }
+  12%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.part-list,
+.parts-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.part-group {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 12px;
+}
+
+.part-group-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--tap-min);
+  border-bottom: 1px solid var(--divider);
+}
+
+.part-group-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.part-row,
+.part-pick {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 52px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.part-row:last-of-type,
+.part-pick:last-child {
+  border-bottom: 0;
+}
+
+.part-pick {
+  width: 100%;
+  padding: 0 4px;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+
+.part-pick[aria-pressed='true'] {
+  color: var(--blue-dark);
+}
+
+.part-pick[aria-pressed='true'] .part-name::before {
+  content: '● ';
+}
+
+.part-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.part-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.part-sub,
+.part-amount {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.part-amount {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.part-row[data-current] .part-name {
+  color: var(--blue-dark);
+}
+
+/* 持ち上げたパーツは、下の行が透けないように白くする */
+.part-row[data-dragging] {
+  background: var(--card);
+}
+
+.part-add {
+  align-self: flex-start;
 }

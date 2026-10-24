@@ -1,13 +1,13 @@
 // アルバムの記録の画面:完成記録の中身をすべて表示する。完成の取り消し(編みかけに戻す)と、記録を消すのもここ
 import { useEffect, useState } from 'preact/hooks';
-import { Icon } from '../components/Icon';
+import { BackButton } from '../components/BackButton';
 import { Partner } from '../components/Partner';
 import { PhotoList } from '../components/PhotoList';
 import { RecordFacts } from '../components/RecordFacts';
 import { ConfirmSheet } from '../components/Sheet';
 import { deleteWork, getWork, listPhotos, reopenWork, type Photo, type Work } from '../lib/db';
 import { useLooks } from '../lib/looks';
-import { go, routes } from '../lib/router';
+import { back, go, routes } from '../lib/router';
 import { Missing } from './Record';
 
 export function AlbumDetail({ id }: { id: string }) {
@@ -37,7 +37,8 @@ export function AlbumDetail({ id }: { id: string }) {
   const remove = async () => {
     setConfirm(null);
     await deleteWork(id);
-    go(routes.album(), true);
+    // 来た画面(アルバムやパートナーの画面)へ戻る
+    back(routes.album());
   };
 
   if (missing) return <Missing />;
@@ -53,9 +54,7 @@ export function AlbumDetail({ id }: { id: string }) {
   return (
     <main class="screen">
       <div class="top-bar">
-        <a class="round-button" href={routes.album()} aria-label="アルバムへ戻る">
-          <Icon name="back" />
-        </a>
+        <BackButton fallback={routes.album()} />
         <h1>{work.name}</h1>
       </div>
 

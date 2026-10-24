@@ -2,14 +2,14 @@
 // 上の部屋の絵にすぐ反映し、その場で保存する
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { ColorDots } from '../components/ColorDots';
-import { Icon } from '../components/Icon';
+import { BackButton } from '../components/BackButton';
 import { InteriorThumb } from '../components/InteriorShapePicker';
 import { Partner } from '../components/Partner';
 import { Scene, displayedWorks } from '../components/Scene';
 import { POT_FLOWERS, ROOM_PALETTES, ROOM_PARTS, ROOM_SWATCHES, type RoomPalette } from '../config/room';
 import { DECORATION_NAMES, decorationIcon, type DecorationId } from '../data/animals';
 import { MAX_DISPLAY, ROOM_SPOT_NAMES, defaultInteriorShape } from '../data/wear';
-import { workProgress } from '../lib/counter';
+import { overallProgress } from '../lib/parts';
 import { getRoom, saveRoom, type RoomData, type Work } from '../lib/db';
 import { roomResident, useLooks } from '../lib/looks';
 import { routes } from '../lib/router';
@@ -50,9 +50,7 @@ export function RoomSettings() {
   return (
     <main class="screen">
       <div class="top-bar">
-        <a class="round-button" href={routes.settings()} aria-label="設定へ戻る">
-          <Icon name="back" />
-        </a>
+        <BackButton fallback={routes.settings()} />
         <h1>部屋の模様替え</h1>
       </div>
 
@@ -66,7 +64,7 @@ export function RoomSettings() {
                 look={looks.look(resident.animal)}
                 name={looks.name(resident.animal)}
                 color={resident.holding?.color ?? resident.last?.color}
-                progress={resident.holding ? workProgress(resident.holding) : 0}
+                progress={resident.holding ? overallProgress(resident.holding) : 0}
                 live
               />
             </section>

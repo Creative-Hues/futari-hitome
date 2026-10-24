@@ -1,6 +1,6 @@
 // 完成記録:写真・感想を入れる。日付・日数・編んだ時間・最後の数は自動で入る
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Icon } from '../components/Icon';
+import { BackButton } from '../components/BackButton';
 import { InteriorShapePicker } from '../components/InteriorShapePicker';
 import { MemoFields } from '../components/MemoFields';
 import { Partner } from '../components/Partner';
@@ -44,9 +44,7 @@ export function Record({ id }: { id: string }) {
   return (
     <main class="screen">
       <div class="top-bar">
-        <a class="round-button" href={routes.albumWork(work.id)} aria-label="記録へ戻る">
-          <Icon name="back" />
-        </a>
+        <BackButton fallback={routes.albumWork(work.id)} />
         <h1>完成記録</h1>
       </div>
 
@@ -120,9 +118,7 @@ export function Missing() {
   return (
     <main class="screen">
       <div class="top-bar">
-        <a class="round-button" href={routes.home()} aria-label="ホームへ戻る">
-          <Icon name="back" />
-        </a>
+        <BackButton fallback={routes.home()} />
       </div>
       <p>作品が見つかりませんでした</p>
     </main>

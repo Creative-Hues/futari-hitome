@@ -1,5 +1,6 @@
 // 設定:部屋の模様替えへの入り口、音声で数える言葉、データの書き出し・読み込み、遊び方のヘルプ
 import { useEffect, useState } from 'preact/hooks';
+import { BackButton } from '../components/BackButton';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Sheet';
 import { backupParts, exportFileName, parseBackup, type BackupSummary } from '../lib/backup';
@@ -110,9 +111,7 @@ export function Settings() {
   return (
     <main class="screen">
       <div class="top-bar">
-        <a class="round-button" href={routes.home()} aria-label="ホームへ戻る">
-          <Icon name="back" />
-        </a>
+        <BackButton fallback={routes.home()} />
         <h1>設定</h1>
       </div>
 

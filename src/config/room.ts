@@ -44,28 +44,42 @@ export const POT_FLOWERS: DecorationId[] = ['tulip', 'cosmos', 'hydrangea', 'sak
 /** 作品の色から、編み目の線の色を作る倍率(約15%暗く) */
 export const ITEM_SHADE = 0.85;
 
-/** パートナーの体の色(null はもとの色)。選んだ色から、明るい色 → 影の色のグラデーションと編み目の線を作る */
+/**
+ * パートナーの体の色(null はもとの色)。選んだ色から、明るい色 → 影の色のグラデーションと編み目の線を作る。
+ * 新しい絵(PNG)でも同じ候補を使い、白く描いた体にこの色を掛け合わせる
+ */
 export const BODY_COLORS: { value: string | null; name: string }[] = [
   { value: null, name: 'もとの色' },
-  { value: '#fbefd5', name: 'クリーム' },
-  { value: '#fbe2e8', name: 'さくら' },
-  { value: '#e0f3e6', name: 'ミント' },
-  { value: '#dfedfa', name: 'そら' },
-  { value: '#ece4f7', name: 'ラベンダー' },
-  { value: '#eee0cf', name: 'ミルクティー' },
-  { value: '#e5e2ea', name: 'グレー' },
+  { value: '#f7dc9c', name: 'クリーム' },
+  { value: '#f5b3c2', name: 'さくら' },
+  { value: '#a6dcc0', name: 'ミント' },
+  { value: '#a9cdf2', name: 'そら' },
+  { value: '#c7b5ea', name: 'ラベンダー' },
+  { value: '#d9b994', name: 'ミルクティー' },
+  { value: '#b9b4c2', name: 'グレー' },
 ];
+
+/** 修正2より前の体の色(うすすぎた色)→ 同じ名前の今の色。データを直すときに使う */
+export const OLD_BODY_COLORS: Record<string, string> = {
+  '#fbefd5': '#f7dc9c',
+  '#fbe2e8': '#f5b3c2',
+  '#e0f3e6': '#a6dcc0',
+  '#dfedfa': '#a9cdf2',
+  '#ece4f7': '#c7b5ea',
+  '#eee0cf': '#d9b994',
+  '#e5e2ea': '#b9b4c2',
+};
 
 /** 体の色のグラデーションと線の作り方 */
 export const BODY_TONE = {
   /** いちばん明るいところ:選んだ色に白を混ぜる割合 */
-  light: 0.6,
+  light: 0.45,
   /** 影のところの倍率 */
-  shadow: 0.9,
+  shadow: 0.84,
   /** 編み目の線の倍率 */
-  stitch: 0.88,
-  /** ねこ・オコジョのしっぽの白い線の倍率 */
-  tail: 0.97,
+  stitch: 0.8,
+  /** ねこ・オコジョのしっぽの白い線:選んだ色に白を混ぜる割合 */
+  tail: 0.25,
 };
 
 /** 目の色(null はもとの色)。ひつじは目が白い点なので別の候補 */

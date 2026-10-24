@@ -5,7 +5,7 @@ import { Partner } from '../components/Partner';
 import { Scene } from '../components/Scene';
 import { ConfirmSheet } from '../components/Sheet';
 import { departmentName } from '../data/departments';
-import { workProgress } from '../lib/counter';
+import { amountText, overallProgress } from '../lib/parts';
 import {
   deleteWork,
   getRoom,
@@ -74,7 +74,7 @@ export function Home() {
             look={looks.look(animal)}
             name={looks.name(animal)}
             color={holding?.color ?? last?.color}
-            progress={holding ? workProgress(holding) : 0}
+            progress={holding ? overallProgress(holding) : 0}
             live
             interactive
           />
@@ -169,7 +169,7 @@ function WorkCard({
   knittingOther: boolean;
   bind: object;
 }) {
-  const p = workProgress(work);
+  const p = overallProgress(work);
   const name = looks?.name(work.partner) ?? '';
   return (
     <a class="work-card card" href={routes.knit(work.id)} draggable={false} {...bind}>
@@ -188,7 +188,7 @@ function WorkCard({
         </span>
       </span>
       <span class="amount">
-        {work.goalRows ? `${work.count.row}/${work.goalRows}段` : `${work.count.row}段`}
+        {amountText(work)}
       </span>
     </a>
   );
@@ -206,7 +206,7 @@ function PausedCard({
   onResume: () => void;
   onDelete: () => void;
 }) {
-  const p = workProgress(work);
+  const p = overallProgress(work);
   const name = looks?.name(work.partner) ?? '';
   return (
     <div class="paused-card card">
@@ -224,7 +224,7 @@ function PausedCard({
           <span class="sub">{work.pausedAt ? `${formatDate(work.pausedAt)}から お休み` : 'お休み'}</span>
         </span>
         <span class="amount">
-          {work.goalRows ? `${work.count.row}/${work.goalRows}段` : `${work.count.row}段`}
+          {amountText(work)}
         </span>
       </div>
       <div class="paused-actions">

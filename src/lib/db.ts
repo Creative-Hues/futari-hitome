@@ -2,17 +2,18 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { ANIMALS, type DecorationId } from '../data/animals';
 import type { InteriorShape, WearDept } from '../data/wear';
-import type { Count } from './counter';
 import { CURRENT_DATA_VERSION, DEFAULT_VOICE_WORDS, migrate, newPartner, newRoom, pickKnitting } from './migrate';
-import type { Pattern } from './pattern';
 import { knitOnResume, partnerAfterDelete, paused, releaseKnitting, resumed, roomAfterDelete } from './lifecycle';
+import type { Part } from './parts';
 import { displayOnComplete, undisplay, unwear, wearOnComplete } from './wardrobe';
+
+export type { HistoryEntry, Part } from './parts';
 
 export type DepartmentId = 'head' | 'neck' | 'body' | 'paw' | 'wear' | 'interior';
 export type AnimalId = 'sheep' | 'cat' | 'stoat' | 'axolotl' | 'seal' | 'otter';
 
-/** 取り消し用に残す、操作前の状態(模様の回数も一緒に戻す) */
-export type HistoryEntry = Count & { repeat?: number };
+/** 編み方:棒針 / かぎ針 */
+export type KnitTool = 'knit' | 'crochet';
 
 export interface WorkMemo {
   /** 使った毛糸 */
@@ -36,22 +37,19 @@ export interface Work {
   order: number;
   /** 作品の色 */
   color: string;
-  /** 目標の段数。目標なしは null */
-  goalRows: number | null;
-  /** 1段の目数。入れていなければ null(段だけ数える) */
-  stitchesPerRow: number | null;
-  count: Count;
-  /** 目標なしの作品の「今このくらい」(0〜100%) */
-  manualProgress: number;
-  /** 取り消し用:操作前の状態(直近50件) */
-  history: HistoryEntry[];
-  /** 2つ目のカウンター。使っていなければ null */
-  pattern: Pattern | null;
+  /** 棒針 / かぎ針 */
+  tool: KnitTool;
+  /**
+   * パーツ(1つ以上)。段・目・目標・取り消しの履歴・模様の回数・編んだ時間はパーツごとに持つ。
+   * パーツを作らない作品は、パーツ1つ(名前は空)
+   */
+  parts: Part[];
+  /** 今編んでいるパーツ */
+  currentPartId: string;
   memo: WorkMemo;
   /** 感想 */
   impression: string;
-  /** 編んだ時間の目安(ミリ秒)と、最後に数が変わった時刻 */
-  knitMs: number;
+  /** 最後に数が変わった時刻(編んだ時間の目安を足すため) */
   lastCountAt: number | null;
   /** 始めた日(ISO文字列) */
   startedAt: string;

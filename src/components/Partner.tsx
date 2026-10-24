@@ -23,7 +23,7 @@ function lookColors(look?: Look): Record<string, string> {
     out['--body-1'] = b;
     out['--body-2'] = shade(b, BODY_TONE.shadow);
     out['--body-stitch'] = shade(b, BODY_TONE.stitch);
-    out['--body-tail'] = shade(b, BODY_TONE.tail);
+    out['--body-tail'] = mix(b, '#ffffff', BODY_TONE.tail);
   }
   if (look?.eyeColor) out['--eye'] = look.eyeColor;
   return out;

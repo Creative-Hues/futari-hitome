@@ -1,8 +1,9 @@
 // 写真を大きく見る画面。2本指で写真を拡大・移動、1本指で動かす、ダブルタップで1倍に戻す。
+// 写真が2枚以上のときは、1倍のときに左右にはらうと前・次の写真に切り替わる。
 // 画面全体の拡大ではなく、写真の大きさを変える(画面全体は noZoom.ts で今までどおり拡大しない)。
 import { createPortal } from 'preact/compat';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { PHOTO_DOUBLE_TAP_MS } from '../config/tuning';
+import { PHOTO_DOUBLE_TAP_MS, PHOTO_SWIPE_PX } from '../config/tuning';
 import type { Photo } from '../lib/db';
 import { clampView, FIT, fitSize, pinch, zoomAt, type View } from '../lib/pinch';
 import { Icon } from './Icon';
@@ -38,7 +39,7 @@ export function PhotoViewer({
   const [confirm, setConfirm] = useState(false);
   const viewRef = useRef<View>(FIT);
   const pointers = useRef(new Map<number, Pt>());
-  const gesture = useRef({ moved: 0, multi: false });
+  const gesture = useRef({ moved: 0, multi: false, start: { x: 0, y: 0 } as Pt });
   const lastTap = useRef<{ t: number; p: Pt } | null>(null);
 
   useLayoutEffect(() => {
@@ -77,7 +78,7 @@ export function PhotoViewer({
     } catch {
       // 指がもう離れているときなど。つかめなくても拡大の計算はできる
     }
-    if (pointers.current.size === 0) gesture.current = { moved: 0, multi: false };
+    if (pointers.current.size === 0) gesture.current = { moved: 0, multi: false, start: local(e) };
     pointers.current.set(e.pointerId, local(e));
     if (pointers.current.size > 1) gesture.current.multi = true;
   };
@@ -103,8 +104,17 @@ export function PhotoViewer({
     const p = pointers.current.get(e.pointerId);
     pointers.current.delete(e.pointerId);
     if (!p || pointers.current.size > 0) return;
+    if (gesture.current.multi) return;
+    // 1倍のとき、1本指で左右にはらったら前・次の写真
+    const dx = p.x - gesture.current.start.x;
+    const dy = p.y - gesture.current.start.y;
+    if (viewRef.current.scale <= 1.01 && Math.abs(dx) > PHOTO_SWIPE_PX && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      const to = index + (dx < 0 ? 1 : -1);
+      if (to >= 0 && to < photos.length) onIndex(to);
+      return;
+    }
     // 1本指で、ほとんど動かさずに離したらタップ。続けて2回なら1倍に戻す
-    if (gesture.current.multi || gesture.current.moved > TAP_SLOP) return;
+    if (gesture.current.moved > TAP_SLOP) return;
     const t = e.timeStamp;
     const last = lastTap.current;
     if (last && t - last.t < PHOTO_DOUBLE_TAP_MS && Math.hypot(p.x - last.p.x, p.y - last.p.y) < DOUBLE_TAP_SLOP) {
@@ -191,7 +201,9 @@ export function PhotoViewer({
           </button>
         )}
       </div>
-      <p class="viewer-hint">2本指で拡大・ダブルタップで元の大きさ</p>
+      <p class="viewer-hint">
+        2本指で拡大・ダブルタップで元の大きさ{photos.length > 1 ? '・左右にはらうと次の写真' : ''}
+      </p>
 
       {confirm && onDelete && (
         <ConfirmSheet

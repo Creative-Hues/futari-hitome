@@ -1,13 +1,14 @@
 // データのバージョン番号と、古い形のデータを新しい形に直す仕組み。
 // データの形を変えるときは CURRENT_DATA_VERSION を1つ上げ、STEPS に「前の番号 → 次の番号」の直し方を足す。
 import type { IDBPDatabase } from 'idb';
-import { ROOM_PALETTES } from '../config/room';
+import { OLD_BODY_COLORS, ROOM_PALETTES } from '../config/room';
 import { ANIMALS, defaultDecoration } from '../data/animals';
 import { defaultInteriorShape, WEAR_DEPTS } from '../data/wear';
 import type { AnimalId, PartnerData, RoomData, Work } from './db';
+import { newPart, type Part } from './parts';
 import { initialDisplay, initialWearing } from './wardrobe';
 
-export const CURRENT_DATA_VERSION = 6;
+export const CURRENT_DATA_VERSION = 7;
 
 /** 音声入力で1カウントになる言葉(最初) */
 export const DEFAULT_VOICE_WORDS = ['あみ'];
@@ -88,6 +89,34 @@ export function workToV6<T extends object>(w: T): T & { pausedAt: string | null 
   return { pausedAt: null, ...w };
 }
 
+/** パーツなしの作品の、1つだけのパーツの ID(バージョン6までの作品を直すとき) */
+export const FIRST_PART_ID = 'part-1';
+
+/**
+ * バージョン6の作品の数・目標・取り消しの履歴・模様・編んだ時間を、1つのパーツに移す。棒針の作品にする
+ */
+export function workToV7(w: Record<string, any>): Record<string, any> {
+  if (Array.isArray(w.parts) && w.parts.length) return { tool: 'knit', ...w };
+  const { goalRows, stitchesPerRow, count, manualProgress, history, pattern, knitMs, ...rest } = w;
+  const part: Part = newPart({
+    id: FIRST_PART_ID,
+    goalRows: goalRows ?? null,
+    stitchesPerRow: stitchesPerRow ?? null,
+    count: count ?? { row: 0, stitch: 0 },
+    manualProgress: manualProgress ?? 0,
+    history: history ?? [],
+    pattern: pattern ?? null,
+    knitMs: knitMs ?? 0,
+  });
+  return { tool: 'knit', ...rest, parts: [part], currentPartId: part.id };
+}
+
+/** 修正2より前のうすい体の色を、同じ名前の今の色にする(候補にない色はそのまま) */
+export function partnerToV7<T extends { bodyColor?: string | null }>(p: T): T {
+  const next = p.bodyColor ? OLD_BODY_COLORS[p.bodyColor.toLowerCase()] : undefined;
+  return next ? { ...p, bodyColor: next } : p;
+}
+
 /** その子の「今編んでいる作品」:編みかけのうち、最後に数えた作品 */
 export function pickKnitting(
   animal: AnimalId,
@@ -138,6 +167,11 @@ const STEPS: Record<number, (db: AnyDB) => Promise<void>> = {
   // 5 → 6:作品に「お休みにした日」を足す(今までの作品はお休みではない)
   5: async (db) => {
     for (const w of await db.getAll('works')) await db.put('works', workToV6(w));
+  },
+  // 6 → 7:作品の数・目標・履歴・模様・編んだ時間をパーツに移す。棒針/かぎ針。体の色を、はっきりした色にする
+  6: async (db) => {
+    for (const w of await db.getAll('works')) await db.put('works', workToV7(w));
+    for (const p of await db.getAll('partners')) await db.put('partners', partnerToV7(p));
   },
 };
 

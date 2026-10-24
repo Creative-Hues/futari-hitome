@@ -37,3 +37,6 @@ export const PHOTO_MAX_ZOOM = 5;
 
 /** 写真を大きく見る画面:この時間(ミリ秒)以内に2回タップすると1倍に戻す */
 export const PHOTO_DOUBLE_TAP_MS = 300;
+
+/** 写真を大きく見る画面:1倍のとき、1本指でこれ以上(px)左右にはらうと前・次の写真に切り替える */
+export const PHOTO_SWIPE_PX = 50;

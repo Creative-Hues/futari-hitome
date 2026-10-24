@@ -1,15 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { BackButton } from '../components/BackButton';
 import { Celebration } from '../components/Celebration';
 import { Icon } from '../components/Icon';
 import { InteriorShapePicker } from '../components/InteriorShapePicker';
 import { MemoFields } from '../components/MemoFields';
 import { Partner, type PartnerMotion } from '../components/Partner';
-import { PhotoList } from '../components/PhotoList';
+import { PartForm, PartsEditor, toPositiveInt } from '../components/PartsEditor';
+import { PhotoList, PhotoThumb } from '../components/PhotoList';
+import { PhotoViewer } from '../components/PhotoViewer';
 import { Scene } from '../components/Scene';
 import { ConfirmSheet, Sheet } from '../components/Sheet';
+import { ToolPicker } from '../components/ToolPicker';
 import { partnerName } from '../data/animals';
+import { PARTS_NOTE } from '../data/help';
 import { defaultInteriorShape } from '../data/wear';
-import { add, progress, pushHistory, snapProgress, undo, unravel, workProgress, type Count } from '../lib/counter';
+import { add, progress, pushHistory, undo, unravel, snapProgress, type Count } from '../lib/counter';
 import {
   completeWork,
   deleteWork,
@@ -17,6 +22,7 @@ import {
   getSettings,
   getWork,
   listPartners,
+  listPhotos,
   listWorks,
   pauseWork,
   saveSettings,
@@ -24,11 +30,25 @@ import {
   setKnitting,
   type AnimalId,
   type HistoryEntry,
+  type Part,
   type PartnerData,
+  type Photo,
   type Settings,
   type Work,
 } from '../lib/db';
 import { addKnitTime } from '../lib/knitTime';
+import {
+  currentPart,
+  editPart,
+  groupParts,
+  hasParts,
+  nextPartId,
+  overallProgress,
+  partLabel,
+  partReached,
+  removePart,
+  updatePart,
+} from '../lib/parts';
 import { advancePattern, newPattern, type Pattern } from '../lib/pattern';
 import { go, routes } from '../lib/router';
 import { TapGuard } from '../lib/tapGuard';
@@ -44,7 +64,9 @@ export function Knit({ id }: { id: string }) {
   const [work, setWork] = useState<Work | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [missing, setMissing] = useState(false);
-  const [sheet, setSheet] = useState<'plus' | 'unravel' | 'pattern' | 'memo' | 'complete' | 'pause' | 'delete' | null>(null);
+  const [sheet, setSheet] = useState<
+    'plus' | 'unravel' | 'pattern' | 'memo' | 'complete' | 'pause' | 'delete' | 'parts' | 'partsEdit' | 'firstPart' | null
+  >(null);
   const [partner, setPartner] = useState<PartnerData | null>(null);
   /** 編みかけの作品(タブと、同じ子が編んでいる別の作品) */
   const [wip, setWip] = useState<Work[]>([]);
@@ -53,6 +75,11 @@ export function Knit({ id }: { id: string }) {
   const [names, setNames] = useState<Partial<Record<AnimalId, string>>>({});
   const [motion, setMotion] = useState<PartnerMotion | null>(null);
   const [celebrating, setCelebrating] = useState(false);
+  /** 編み図の写真(原っぱの小さな写真と、大きく見る画面) */
+  const [patternPhotos, setPatternPhotos] = useState<Photo[]>([]);
+  const [viewing, setViewing] = useState<number | null>(null);
+  /** パーツを切り替えたときに小さく出す「親指を数えます」 */
+  const [partNote, setPartNote] = useState<{ text: string; n: number } | null>(null);
   const motionCount = useRef(0);
   const workRef = useRef<Work | null>(null);
   const wakeLock = useWakeLock();
@@ -80,6 +107,7 @@ export function Knit({ id }: { id: string }) {
       setSettings(s);
       voiceWords = s.voiceWords;
     });
+    listPhotos(id, 'pattern').then(setPatternPhotos);
   }, [id]);
 
   /** その子が別の作品を編んでいるときは、その作品 */
@@ -98,22 +126,20 @@ export function Knit({ id }: { id: string }) {
     setWork(updated);
   };
 
-  /** 数・模様が変わったときの保存。取り消し用に変える前の状態を残し、編んだ時間を足す */
-  const commit = (w: Work, patch: Partial<Work>) => {
-    const t = addKnitTime(w.knitMs, w.lastCountAt, Date.now());
-    const updated: Work = {
-      ...w,
+  /** 数・模様が変わったときの保存(今のパーツ)。取り消し用に変える前の状態を残し、編んだ時間を足す */
+  const commit = (w: Work, patch: Partial<Part>) => {
+    const part = currentPart(w);
+    const t = addKnitTime(part.knitMs, w.lastCountAt, Date.now());
+    const updated = updatePart({ ...w, lastCountAt: t.lastAt, updatedAt: new Date().toISOString() }, part.id, {
       ...patch,
-      history: pushHistory<HistoryEntry>(w.history, { ...w.count, repeat: w.pattern?.count }),
+      history: pushHistory<HistoryEntry>(part.history, { ...part.count, repeat: part.pattern?.count }),
       knitMs: t.knitMs,
-      lastCountAt: t.lastAt,
-      updatedAt: new Date().toISOString(),
-    };
+    });
     show(updated);
     saveWork(updated);
   };
 
-  /** 取り消しの対象にしない変更(メモ・模様の設定など) */
+  /** 取り消しの対象にしない変更(メモ・模様の設定・パーツの切り替えなど) */
   const update = (patch: Partial<Work>) => {
     const w = workRef.current;
     if (!w) return;
@@ -122,33 +148,45 @@ export function Knit({ id }: { id: string }) {
     saveWork(updated);
   };
 
-  /** 数を変えて保存する。変わったら true */
-  const change = (next: (c: Count, w: Work) => Count): boolean => {
+  /** 今のパーツの、取り消しの対象にしない変更(模様の設定など) */
+  const updateCurrent = (patch: Partial<Part>) => {
+    const w = workRef.current;
+    if (w) update({ parts: updatePart(w, currentPart(w).id, patch).parts });
+  };
+
+  /** 今のパーツの数を変えて保存する。変わったら true */
+  const change = (next: (c: Count, p: Part) => Count): boolean => {
     const w = workRef.current;
     if (!w || w.status !== 'wip') return false;
-    const count = next(w.count, w);
-    if (count.row === w.count.row && count.stitch === w.count.stitch) return false;
-    commit(w, { count, pattern: w.pattern && advancePattern(w.pattern, w.count.row, count.row) });
+    const part = currentPart(w);
+    const count = next(part.count, part);
+    if (count.row === part.count.row && count.stitch === part.count.stitch) return false;
+    commit(w, { count, pattern: part.pattern && advancePattern(part.pattern, part.count.row, count.row) });
     return true;
   };
 
   const countUp = (n: number) => {
-    if (change((c, w) => add(c, n, w.stitchesPerRow))) move('knit');
+    if (change((c, p) => add(c, n, p.stitchesPerRow))) move('knit');
   };
 
-  /** 2つ目のカウンターを手で ±1 */
+  /** 模様の回数を手で ±1 */
   const stepPattern = (d: number) => {
     const w = workRef.current;
-    if (!w?.pattern || w.status !== 'wip') return;
-    const count = Math.max(0, w.pattern.count + d);
-    if (count !== w.pattern.count) commit(w, { pattern: { ...w.pattern, count } });
+    const pattern = w && currentPart(w).pattern;
+    if (!w || !pattern || w.status !== 'wip') return;
+    const count = Math.max(0, pattern.count + d);
+    if (count !== pattern.count) commit(w, { pattern: { ...pattern, count } });
   };
 
-  /** 目標なしの作品の「今このくらい」。数とは別なので取り消しの対象にはしない */
+  /** 目標なしのパーツの「今このくらい」。数とは別なので取り消しの対象にはしない */
   const setManual = (percent: number, save: boolean) => {
     const w = workRef.current;
     if (!w) return;
-    const updated: Work = { ...w, manualProgress: percent, updatedAt: save ? new Date().toISOString() : w.updatedAt };
+    const updated = updatePart(
+      { ...w, updatedAt: save ? new Date().toISOString() : w.updatedAt },
+      currentPart(w).id,
+      { manualProgress: percent },
+    );
     show(updated);
     if (save) saveWork(updated);
   };
@@ -156,21 +194,35 @@ export function Knit({ id }: { id: string }) {
   const undoLast = () => {
     const w = workRef.current;
     if (!w || w.status !== 'wip') return;
-    const r = undo(w.history);
+    const part = currentPart(w);
+    const r = undo(part.history);
     if (!r) return;
     const { repeat, ...count } = r.count;
-    const t = addKnitTime(w.knitMs, w.lastCountAt, Date.now());
-    const updated: Work = {
-      ...w,
+    const t = addKnitTime(part.knitMs, w.lastCountAt, Date.now());
+    const updated = updatePart({ ...w, lastCountAt: t.lastAt, updatedAt: new Date().toISOString() }, part.id, {
       count,
-      pattern: w.pattern && repeat !== undefined ? { ...w.pattern, count: repeat } : w.pattern,
+      pattern: part.pattern && repeat !== undefined ? { ...part.pattern, count: repeat } : part.pattern,
       history: r.history,
       knitMs: t.knitMs,
-      lastCountAt: t.lastAt,
-      updatedAt: new Date().toISOString(),
-    };
+    });
     show(updated);
     saveWork(updated);
+  };
+
+  /** 編むパーツを切り替える(数・履歴はパーツごとなので混ざらない) */
+  const switchPart = (partId: string) => {
+    const w = workRef.current;
+    if (!w || partId === w.currentPartId) return;
+    update({ currentPartId: partId });
+    const p = w.parts.find((x) => x.id === partId);
+    if (p) setPartNote((n) => ({ text: `${partLabel(p)}を数えます`, n: (n?.n ?? 0) + 1 }));
+  };
+
+  /** パーツを直したとき。今のパーツがなくなっていたら1つ目にする */
+  const changeParts = (parts: Part[]) => {
+    const w = workRef.current;
+    if (!w) return;
+    update({ parts, currentPartId: parts.some((p) => p.id === w.currentPartId) ? w.currentPartId : parts[0].id });
   };
 
   /** 同じ子のワンタップ切り替え:この作品を編んでもらう(編み地が今の進み具合まで追いつく) */
@@ -205,9 +257,7 @@ export function Knit({ id }: { id: string }) {
     return (
       <main class="screen">
         <div class="top-bar">
-          <a class="round-button" href={routes.home()} aria-label="ホームへ戻る">
-            <Icon name="back" />
-          </a>
+          <BackButton fallback={routes.home()} />
         </div>
         <p>作品が見つかりませんでした</p>
       </main>
@@ -215,20 +265,22 @@ export function Knit({ id }: { id: string }) {
   }
   if (!work || !settings) return <main class="screen knit" />;
 
-  const perRow = work.stitchesPerRow;
-  const p = progress(work.count, work.goalRows, perRow);
+  const part = currentPart(work);
+  const perRow = part.stitchesPerRow;
+  const p = progress(part.count, part.goalRows, perRow);
   const unit = perRow ? '目' : '段';
   const quick = settings.quickAdds[0];
-  const canFinish = work.status === 'wip' && (p !== null ? p >= 1 : work.manualProgress >= 100);
+  const canFinish = work.status === 'wip' && overallProgress(work) >= 1 - 1e-9;
+  const next = nextPartId(work);
+  const canNext = hasParts(work) && partReached(part) && next !== null;
   const shown = other ?? work;
   const name = partnerName(work.partner, partner);
+  const pattern = part.pattern;
 
   return (
     <main class="screen knit">
       <div class="top-bar">
-        <a class="round-button" href={routes.home()} aria-label="ホームへ戻る">
-          <Icon name="back" />
-        </a>
+        <BackButton fallback={routes.home()} />
         {wip.length >= 2 ? <WorkTabs works={wip} current={work.id} names={names} /> : <h1>{work.name}</h1>}
       </div>
 
@@ -239,15 +291,25 @@ export function Knit({ id }: { id: string }) {
           look={partner ? lookOf(partner, allWorks) : undefined}
           name={name}
           color={shown.color}
-          progress={workProgress(shown)}
+          progress={overallProgress(shown)}
           motion={motion}
           live
           interactive
         />
+        {patternPhotos[0] && (
+          <button class="pattern-thumb" aria-label="編み図の写真を大きく見る" onClick={() => setViewing(0)}>
+            <PhotoThumb photo={patternPhotos[0]} />
+          </button>
+        )}
         {canFinish && (
           <button class="finish-button" onClick={() => setSheet('complete')}>
             完成!
           </button>
+        )}
+        {partNote && (
+          <p key={partNote.n} class="part-note" aria-live="polite" onAnimationEnd={() => setPartNote(null)}>
+            {partNote.text}
+          </p>
         )}
         {other && (
           <div class="knitting-other">
@@ -262,9 +324,24 @@ export function Knit({ id }: { id: string }) {
       </section>
 
       <div class="stats">
-        {p === null && (
-          <ProgressPicker value={work.manualProgress} color={work.color} onChange={setManual} />
+        {hasParts(work) && (
+          <div class="part-line">
+            <button
+              class="part-chip"
+              aria-label={`今のパーツ ${partLabel(part)}。押すとパーツの一覧`}
+              onClick={() => setSheet('parts')}
+            >
+              <span>{partLabel(part)}</span>
+              <Icon name="down" size={16} />
+            </button>
+            {canNext && (
+              <button class="primary-button small next-part" onClick={() => switchPart(next)}>
+                次のパーツへ
+              </button>
+            )}
+          </div>
         )}
+        {p === null && <ProgressPicker value={part.manualProgress} color={work.color} onChange={setManual} />}
         {p !== null && (
           <div class="bar" role="progressbar" aria-valuenow={Math.round(p * 100)} aria-valuemin={0} aria-valuemax={100}>
             <span style={{ width: `${p * 100}%`, background: work.color }} />
@@ -272,21 +349,21 @@ export function Knit({ id }: { id: string }) {
         )}
         <div class="numbers" aria-live="polite">
           <span class="big">
-            {work.count.row}
-            <span class="unit">{work.goalRows ? ` / ${work.goalRows}段` : ' 段'}</span>
+            {part.count.row}
+            <span class="unit">{part.goalRows ? ` / ${part.goalRows}段` : ' 段'}</span>
           </span>
           {perRow && (
             <span class="mid">
-              {work.count.stitch}
+              {part.count.stitch}
               <span class="unit"> / {perRow}目</span>
             </span>
           )}
           <button
-            class={`pattern-chip${work.pattern ? '' : ' empty'}`}
-            aria-label={work.pattern ? `2つ目のカウンター ${work.pattern.name} ${work.pattern.count}回` : '2つ目のカウンターを使う'}
+            class={`pattern-chip${pattern ? '' : ' empty'}`}
+            aria-label={pattern ? `模様の回数 ${pattern.name} ${pattern.count}回` : '模様の回数を数える'}
             onClick={() => setSheet('pattern')}
           >
-            <span>{work.pattern ? `${work.pattern.name} ${work.pattern.count}回` : '＋ 2つ目'}</span>
+            <span>{pattern ? `${pattern.name} ${pattern.count}回` : '＋ 模様の回数'}</span>
           </button>
         </div>
       </div>
@@ -294,7 +371,7 @@ export function Knit({ id }: { id: string }) {
       <TapZone onCount={() => countUp(1)} unit={unit} onVoiceCount={countUp} />
 
       <div class="tools">
-        <button class="tool" onClick={undoLast} disabled={work.history.length === 0}>
+        <button class="tool" onClick={undoLast} disabled={part.history.length === 0}>
           取り消し
         </button>
         <button class="tool" onClick={() => setSheet('plus')}>
@@ -329,7 +406,7 @@ export function Knit({ id }: { id: string }) {
         <UnravelSheet
           hasStitches={!!perRow}
           onUnravel={(u, n) => {
-            if (change((c, w) => unravel(c, u, n, w.stitchesPerRow))) move('unravel');
+            if (change((c, pt) => unravel(c, u, n, pt.stitchesPerRow))) move('unravel');
             setSheet(null);
           }}
           onClose={() => setSheet(null)}
@@ -337,15 +414,92 @@ export function Knit({ id }: { id: string }) {
       )}
       {sheet === 'pattern' && (
         <PatternSheet
-          pattern={work.pattern}
-          row={work.count.row}
-          onUpdate={(pattern) => update({ pattern })}
+          key={part.id}
+          pattern={pattern}
+          row={part.count.row}
+          partName={hasParts(work) ? partLabel(part) : null}
+          onUpdate={(pt) => updateCurrent({ pattern: pt })}
           onStep={stepPattern}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === 'parts' && (
+        <Sheet title="パーツ" tall onClose={() => setSheet(null)}>
+          <div class="part-list">
+            {groupParts(work.parts).map((g) => (
+              <div class="part-group card">
+                {g.group && (
+                  <div class="part-group-head">
+                    <span class="part-group-name">{g.group}</span>
+                  </div>
+                )}
+                {g.parts.map((pt) => (
+                  <button
+                    class="part-pick"
+                    aria-pressed={pt.id === part.id}
+                    onClick={() => {
+                      switchPart(pt.id);
+                      setSheet(null);
+                    }}
+                  >
+                    <span class="part-name">{pt.name.trim() || 'パーツ'}</span>
+                    <span class="part-amount">
+                      {pt.goalRows ? `${pt.count.row}/${pt.goalRows}段` : `${pt.count.row}段`}
+                      {partReached(pt) ? ' ・ できた' : ''}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+          <p class="field-note">作品全体 {Math.round(overallProgress(work) * 100)}%</p>
+          <div class="actions">
+            <button class="secondary-button" onClick={() => setSheet('partsEdit')}>
+              直す
+            </button>
+            <button class="primary-button" onClick={() => setSheet(null)}>
+              とじる
+            </button>
+          </div>
+        </Sheet>
+      )}
+      {sheet === 'partsEdit' && (
+        <Sheet title="パーツを直す" tall onClose={() => setSheet(null)}>
+          <PartsEditor
+            parts={work.parts}
+            currentPartId={part.id}
+            onChange={changeParts}
+            onRemove={(pid) => {
+              const w = workRef.current;
+              if (!w) return;
+              const r = removePart(w, pid);
+              update({ parts: r.parts, currentPartId: r.currentPartId });
+            }}
+          />
+          <button class="primary-button" onClick={() => setSheet(null)}>
+            とじる
+          </button>
+        </Sheet>
+      )}
+      {sheet === 'firstPart' && (
+        <PartForm
+          part={work.parts[0]}
+          isNew={false}
+          groups={[]}
+          canRemove={false}
+          title="パーツに分ける"
+          ok="次へ"
+          note="いま数えている分は、このパーツの数になります"
+          onSave={(pt) => {
+            changeParts(editPart(work.parts, pt.id, pt));
+            setSheet('partsEdit');
+          }}
           onClose={() => setSheet(null)}
         />
       )}
       {sheet === 'memo' && (
         <Sheet title="メモ" tall onClose={() => setSheet(null)}>
+          <ToolPicker value={work.tool} onChange={(tool) => update({ tool })} />
           <MemoFields memo={work.memo} onChange={(memo) => update({ memo })} />
           {work.department === 'interior' && (
             <div class="field">
@@ -359,7 +513,23 @@ export function Knit({ id }: { id: string }) {
           )}
           <div class="field">
             <span class="field-title">編み図の写真</span>
-            <PhotoList workId={work.id} kind="pattern" />
+            <PhotoList workId={work.id} kind="pattern" onChange={setPatternPhotos} />
+            <p class="field-note">1枚目が、原っぱの左上に小さく出ます。押すと大きく見られます</p>
+          </div>
+          <div class="field">
+            <span class="field-title">パーツ</span>
+            {hasParts(work) ? (
+              <button class="secondary-button" onClick={() => setSheet('partsEdit')}>
+                パーツを直す
+              </button>
+            ) : (
+              <>
+                <p class="field-note">{PARTS_NOTE}。</p>
+                <button class="secondary-button" onClick={() => setSheet('firstPart')}>
+                  パーツに分ける
+                </button>
+              </>
+            )}
           </div>
           <button class="primary-button" onClick={() => setSheet(null)}>
             とじる
@@ -402,6 +572,9 @@ export function Knit({ id }: { id: string }) {
           onOk={remove}
           onClose={() => setSheet(null)}
         />
+      )}
+      {viewing !== null && patternPhotos[viewing] && (
+        <PhotoViewer photos={patternPhotos} index={viewing} onIndex={setViewing} onClose={() => setViewing(null)} />
       )}
       {celebrating && (
         <Celebration
@@ -450,17 +623,20 @@ function WorkTabs({
   );
 }
 
-// ---------- 2つ目のカウンター ----------
+// ---------- 模様の回数(2つ目のカウンター) ----------
 
 function PatternSheet({
   pattern,
   row,
+  partName,
   onUpdate,
   onStep,
   onClose,
 }: {
   pattern: Pattern | null;
   row: number;
+  /** パーツがあるときは、どのパーツのカウンターか */
+  partName: string | null;
   onUpdate: (p: Pattern | null) => void;
   onStep: (d: number) => void;
   onClose: () => void;
@@ -510,14 +686,17 @@ function PatternSheet({
         />
         段ごとに1回 自動で進める
       </div>
-      <p class="field-note">入れなければ、下の「＋1回」で手で数えます</p>
+      <p class="field-note">入れなければ、「＋1回」で手で数えます</p>
+      {partName && <p class="field-note">このカウンターは「{partName}」のものです</p>}
     </>
   );
 
   if (!pattern) {
     return (
-      <Sheet title="2つ目のカウンター" onClose={onClose}>
-        <p class="sheet-message">模様の繰り返しの回数などを数えます</p>
+      <Sheet title="模様の回数" onClose={onClose}>
+        <p class="sheet-message">
+          模様のくり返し回数など、段とは別に数えたいものに使います。「8段ごとに1回」のように入れると、段に合わせて自動で進みます
+        </p>
         {fields}
         <div class="actions">
           <button class="secondary-button" onClick={onClose}>
@@ -532,7 +711,10 @@ function PatternSheet({
   }
 
   return (
-    <Sheet title="2つ目のカウンター" onClose={onClose}>
+    <Sheet title="模様の回数" onClose={onClose}>
+      <p class="sheet-message">
+        {pattern.everyRows ? `${pattern.everyRows}段ごとに自動で進みます` : '「＋1回」で手で数えます'}
+      </p>
       <div class="pattern-count">
         <button class="secondary-button" aria-label="1回もどす" onClick={() => onStep(-1)} disabled={pattern.count === 0}>
           −1回
@@ -844,12 +1026,6 @@ function ProgressPicker({
 }
 
 // ---------- +N ----------
-
-function toPositiveInt(s: string): number | null {
-  const half = s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
-  const n = parseInt(half, 10);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
 
 function PlusSheet({
   unit,

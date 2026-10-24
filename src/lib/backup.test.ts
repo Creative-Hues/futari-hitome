@@ -20,15 +20,24 @@ function work(id: string, extra: Partial<Work> = {}): Work {
     status: 'wip',
     order: 0,
     color: '#5aa3df',
-    goalRows: 80,
-    stitchesPerRow: 30,
-    count: { row: 42, stitch: 17 },
-    manualProgress: 0,
-    history: [{ row: 42, stitch: 16 }],
-    pattern: { name: '模様', count: 3, everyRows: 4, baseRow: 0 },
+    tool: 'knit',
+    parts: [
+      {
+        id: 'part-1',
+        group: '',
+        name: '',
+        goalRows: 80,
+        stitchesPerRow: 30,
+        count: { row: 42, stitch: 17 },
+        manualProgress: 0,
+        history: [{ row: 42, stitch: 16 }],
+        pattern: { name: '模様', count: 3, everyRows: 4, baseRow: 0 },
+        knitMs: 12345,
+      },
+    ],
+    currentPartId: 'part-1',
     memo: { yarn: '毛糸', needle: '6号', note: 'メモ "引用" \\ と改行\nも' },
     impression: '',
-    knitMs: 12345,
     lastCountAt: 1,
     startedAt: '2026-10-01T00:00:00.000Z',
     finishedAt: null,
@@ -38,6 +47,13 @@ function work(id: string, extra: Partial<Work> = {}): Work {
     updatedAt: '2026-10-02T00:00:00.000Z',
     ...extra,
   };
+}
+
+/** バージョン6までの形(数・目標・履歴・模様・編んだ時間を作品に持つ)に戻す。古いファイルを作るため */
+function toV6(w: Work): Record<string, unknown> {
+  const { parts, currentPartId: _c, tool: _t, ...rest } = w;
+  const { id: _id, group: _g, name: _n, ...fields } = parts[0];
+  return { ...rest, ...fields };
 }
 
 function photo(id: string, workId: string, size: number, seed: number): Photo {
@@ -157,8 +173,26 @@ describe('読み込めないファイル', () => {
     const file = JSON.parse(await exported(snapshot()));
     const broken = (works: unknown[]) => JSON.stringify({ ...file, works });
     expect(await reasonOf(broken([{ ...file.works[0], id: undefined }]))).toBe(REASONS.broken('作品'));
-    expect(await reasonOf(broken([{ ...file.works[0], count: { row: 'x', stitch: 0 } }]))).toBe(REASONS.broken('作品'));
     expect(await reasonOf(broken([file.works[0], file.works[0]]))).toBe(REASONS.broken('作品'));
+  });
+
+  it('パーツがない・パーツの数が数字でない・同じパーツの ID が2つ(バージョン7)', async () => {
+    const file = JSON.parse(await exported(snapshot()));
+    const w = file.works[0];
+    const part = w.parts[0];
+    const broken = (parts: unknown) => JSON.stringify({ ...file, works: [{ ...w, parts }] });
+    const reason = REASONS.broken('作品のパーツ');
+    expect(await reasonOf(broken(undefined))).toBe(reason);
+    expect(await reasonOf(broken([]))).toBe(reason);
+    expect(await reasonOf(broken([{ ...part, count: { row: 'x', stitch: 0 } }]))).toBe(reason);
+    expect(await reasonOf(broken([part, part]))).toBe(reason);
+  });
+
+  it('バージョン6までのファイルは、作品の数を確かめる', async () => {
+    const file = JSON.parse(await exported(snapshot()));
+    const v6 = { ...file, dataVersion: 6, settings: { ...file.settings, dataVersion: 6 } };
+    const works = [{ ...toV6(snapshot().works[0]), count: { row: 'x', stitch: 0 } }];
+    expect(await reasonOf(JSON.stringify({ ...v6, works }))).toBe(REASONS.broken('作品'));
   });
 
   it('写真の文字が壊れている', async () => {
@@ -196,7 +230,22 @@ describe('古いバージョンのファイルを今の形に直す', () => {
     if (!r.ok) throw new Error(r.reason);
     const s = r.snapshot;
     expect(s.settings).toMatchObject({ dataVersion: CURRENT_DATA_VERSION, voiceWords: ['あみ'], lastExportedAt: null });
-    expect(s.works[0]).toMatchObject({ ...v1Work, manualProgress: 0, pattern: null, interiorShape: null, knitMs: 0 });
+    const { goalRows, stitchesPerRow, count, history, ...rest } = v1Work;
+    expect(s.works[0]).toMatchObject({ ...rest, interiorShape: null, tool: 'knit', currentPartId: 'part-1' });
+    expect(s.works[0].parts).toEqual([
+      {
+        id: 'part-1',
+        group: '',
+        name: '',
+        goalRows,
+        stitchesPerRow,
+        count,
+        manualProgress: 0,
+        history,
+        pattern: null,
+        knitMs: 0,
+      },
+    ]);
     expect(s.partners.map((p) => p.animal)).toEqual(ANIMALS);
     expect(s.partners.find((p) => p.animal === 'sheep')).toMatchObject({ met: true, wearing: {} });
     expect(s.room).toEqual(newRoom());
@@ -248,6 +297,7 @@ describe('古いバージョンのファイルを今の形に直す', () => {
   it('バージョン4(設定に「最後に書き出した日」が足される)', async () => {
     const file = JSON.parse(await exported(snapshot()));
     delete file.settings.lastExportedAt;
+    file.works = snapshot().works.map(toV6);
     const r = await parseBackup(JSON.stringify({ ...file, dataVersion: 4, settings: { ...file.settings, dataVersion: 4 } }));
     if (!r.ok) throw new Error(r.reason);
     expect(r.snapshot.settings).toMatchObject({ dataVersion: CURRENT_DATA_VERSION, lastExportedAt: null, quickAdds: [10, 5] });
@@ -258,7 +308,7 @@ describe('古いバージョンのファイルを今の形に直す', () => {
 describe('お休み(データのバージョン6)', () => {
   it('お休みの作品は、状態とお休みにした日がそのまま戻り、件数に出る', async () => {
     const snap = snapshot();
-    snap.works.push(work('c', { status: 'paused', pausedAt: '2026-10-10T00:00:00.000Z', history: [{ row: 1, stitch: 2 }] }));
+    snap.works.push(work('c', { status: 'paused', pausedAt: '2026-10-10T00:00:00.000Z', tool: 'crochet' }));
     const r = await parseBackup(await exported(snap));
     if (!r.ok) throw new Error(r.reason);
     expect(r.snapshot.works).toEqual(snap.works);
@@ -267,6 +317,7 @@ describe('お休み(データのバージョン6)', () => {
 
   it('バージョン5のファイル:作品に pausedAt: null が足される', async () => {
     const file = JSON.parse(await exported(snapshot()));
+    file.works = snapshot().works.map(toV6);
     for (const w of file.works) delete w.pausedAt;
     const r = await parseBackup(JSON.stringify({ ...file, dataVersion: 5, settings: { ...file.settings, dataVersion: 5 } }));
     if (!r.ok) throw new Error(r.reason);

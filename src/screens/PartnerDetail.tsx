@@ -2,7 +2,7 @@
 // 変えたものはその場で保存し、上の大きな絵にすぐ反映する
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { ColorDots } from '../components/ColorDots';
-import { Icon } from '../components/Icon';
+import { BackButton } from '../components/BackButton';
 import { InteriorThumb } from '../components/InteriorShapePicker';
 import { Partner } from '../components/Partner';
 import { BODY_COLORS, EYE_COLORS, SHEEP_EYE_COLORS } from '../config/room';
@@ -17,7 +17,7 @@ import {
 } from '../data/animals';
 import { DEPARTMENTS } from '../data/departments';
 import { MAX_DISPLAY, defaultInteriorShape, type WearDept } from '../data/wear';
-import { workProgress } from '../lib/counter';
+import { overallProgress } from '../lib/parts';
 import {
   getPartner,
   getRoom,
@@ -266,9 +266,9 @@ export function PartnerDetail({ animal }: { animal: string }) {
               <span class="name">{w.name}</span>
               <span class="sub">
                 {w.status === 'wip'
-                  ? `編みかけ ${Math.round(workProgress(w) * 100)}%`
+                  ? `編みかけ ${Math.round(overallProgress(w) * 100)}%`
                   : w.status === 'paused'
-                  ? `お休み中 ${Math.round(workProgress(w) * 100)}%`
+                  ? `お休み中 ${Math.round(overallProgress(w) * 100)}%`
                   : `完成 ${w.finishedAt ? formatDate(w.finishedAt) : ''}`}
               </span>
             </a>
@@ -282,9 +282,7 @@ export function PartnerDetail({ animal }: { animal: string }) {
 function TopBar({ title }: { title: string }) {
   return (
     <div class="top-bar">
-      <a class="round-button" href={routes.partners()} aria-label="なかまへ戻る">
-        <Icon name="back" />
-      </a>
+      <BackButton fallback={routes.partners()} />
       <h1>{title}</h1>
     </div>
   );

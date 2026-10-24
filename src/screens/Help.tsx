@@ -1,5 +1,5 @@
 // 遊び方のヘルプ。文は src/data/help.ts に書く
-import { Icon } from '../components/Icon';
+import { BackButton } from '../components/BackButton';
 import { HELP, HELP_LEAD } from '../data/help';
 import { routes } from '../lib/router';
 
@@ -7,9 +7,7 @@ export function Help() {
   return (
     <main class="screen">
       <div class="top-bar">
-        <a class="round-button" href={routes.settings()} aria-label="設定へ戻る">
-          <Icon name="back" />
-        </a>
+        <BackButton fallback={routes.settings()} />
         <h1>遊び方のヘルプ</h1>
       </div>
 

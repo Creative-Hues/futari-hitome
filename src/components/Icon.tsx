@@ -2,6 +2,7 @@
 const PATHS = {
   back: <path d="M15 5 8 12l7 7" />,
   next: <path d="m9 5 7 7-7 7" />,
+  down: <path d="m6 9 6 6 6-6" />,
   home: (
     <>
       <path d="M3 11 12 4l9 7" />
