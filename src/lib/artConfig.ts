@@ -37,6 +37,13 @@ export interface KnitBox {
   maxHeight: number;
 }
 
+/** 左右の手。masks は体の色を付ける場所(なければその手には色を付けない) */
+export interface HandPair {
+  l: Placed;
+  r: Placed;
+  masks: { l: Placed | null; r: Placed | null };
+}
+
 /** どうぶつのPNGの絵(体があるときだけ)。null の部品は今のSVGを使う */
 export interface AnimalArt {
   body: Placed;
@@ -44,7 +51,7 @@ export interface AnimalArt {
   mask: Placed | null;
   eyes: Placed | null;
   /** 左右そろったときだけ。かぎ針がなければ棒針 */
-  hands: { knit: { l: Placed; r: Placed } | null; crochet: { l: Placed; r: Placed } | null };
+  hands: { knit: HandPair | null; crochet: HandPair | null };
   /** 手の回転の中心(240 の座標) */
   centers: { l: Point; r: Point };
   /** 頭飾りの位置(240 の座標) */
@@ -114,10 +121,16 @@ export class ArtBook {
     return { href: f.href, x: (f.x - ox) / ratio, y: (f.y - oy) / ratio, width: f.width / ratio, height: f.height / ratio };
   }
 
-  private pair(animal: string, tool: string) {
-    const l = this.place(`${animal}_hand-left_${tool}`, 0, 0, ANIMAL_RATIO);
-    const r = this.place(`${animal}_hand-right_${tool}`, 0, 0, ANIMAL_RATIO);
-    return l && r ? { l, r } : null;
+  private pair(animal: string, tool: string): HandPair | null {
+    const name = (side: string) => `${animal}_hand-${side}_${tool}`;
+    const l = this.place(name('left'), 0, 0, ANIMAL_RATIO);
+    const r = this.place(name('right'), 0, 0, ANIMAL_RATIO);
+    if (!l || !r) return null;
+    const masks = {
+      l: this.place(`${name('left')}_mask`, 0, 0, ANIMAL_RATIO),
+      r: this.place(`${name('right')}_mask`, 0, 0, ANIMAL_RATIO),
+    };
+    return { l, r, masks };
   }
 
   animal(animal: string, d: AnimalDefaults): AnimalArt | null {

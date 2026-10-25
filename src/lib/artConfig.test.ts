@@ -46,6 +46,20 @@ describe('新しい絵(PNG)の選び方', () => {
     expect(both.hands.crochet?.r.href).toBe('/art/sheep_hand-right_crochet.png');
   });
 
+  it('手のマスクは、あるほうの手だけに使う(ない手には色を付けない)', () => {
+    const b = book({
+      sheep_body: f(0, 0, 960, 960),
+      'sheep_hand-left_knit': f(320, 520, 160, 160),
+      'sheep_hand-right_knit': f(480, 520, 160, 160),
+      'sheep_hand-left_knit_mask': f(360, 560, 80, 80),
+      'sheep_hand-right_crochet_mask': f(480, 520, 160, 160),
+    }).animal('sheep', SHEEP)!;
+    expect(b.hands.knit?.masks.l).toEqual({ href: '/art/sheep_hand-left_knit_mask.png', x: 90, y: 140, width: 20, height: 20 });
+    expect(b.hands.knit?.masks.r).toBeNull();
+    // 手がそろっていなければ、マスクだけあっても使わない
+    expect(b.hands.crochet).toBeNull();
+  });
+
   it('art.json がなければ art-guide のとおり(今のSVGの位置と同じ)', () => {
     const a = book({ sheep_body: f(0, 0, 960, 960) }).animal('sheep', SHEEP)!;
     expect(a.centers).toEqual({ l: { x: 102, y: 150 }, r: { x: 138, y: 150 } });

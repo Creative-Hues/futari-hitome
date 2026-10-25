@@ -91,15 +91,17 @@ export function Partner({
     if (!art) return null;
     const slots: Slot[] = [];
     const add = (placed: Placed, tint?: ArtTint) => slots.push({ placed, tint }) - 1;
-    const body = add(
-      art.body,
-      bodyColor && art.mask
-        ? { mode: 'masked', color: mix(bodyColor, '#ffffff', BODY_TONE.png), body: art.body, mask: art.mask }
-        : undefined,
-    );
+    /** マスクの白いところに体の色を付ける(体の色を選んでいないとき・マスクがないときは付けない) */
+    const bodyTint = (placed: Placed, mask: Placed | null): ArtTint | undefined =>
+      bodyColor && mask
+        ? { mode: 'masked', color: mix(bodyColor, '#ffffff', BODY_TONE.png), body: placed, mask }
+        : undefined;
+    const body = add(art.body, bodyTint(art.body, art.mask));
     const eyes = art.eyes ? add(art.eyes, { mode: 'paint', color: eyeColor ?? eyeFill(animalSvg(animal)) }) : null;
     const pair = (usedTool === 'crochet' && art.hands.crochet) || art.hands.knit;
-    const hands = pair ? { l: add(pair.l), r: add(pair.r) } : null;
+    const hands = pair
+      ? { l: add(pair.l, bodyTint(pair.l, pair.masks.l)), r: add(pair.r, bodyTint(pair.r, pair.masks.r)) }
+      : null;
     const decoPng = decorationArt(deco);
     const decoration = decoPng ? add(decoPng) : null;
     const wear = (look?.wear ?? []).map((w): WearSlots | null => {

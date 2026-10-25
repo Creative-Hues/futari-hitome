@@ -28,7 +28,12 @@ function knownNames() {
   const names = new Set();
   for (const a of Object.keys(anchors.anchors)) {
     for (const p of ['body', 'body-mask', 'eyes']) names.add(`${a}_${p}`);
-    for (const side of ['left', 'right']) for (const tool of ['knit', 'crochet']) names.add(`${a}_hand-${side}_${tool}`);
+    for (const side of ['left', 'right']) {
+      for (const tool of ['knit', 'crochet']) {
+        names.add(`${a}_hand-${side}_${tool}`);
+        names.add(`${a}_hand-${side}_${tool}_mask`);
+      }
+    }
   }
   for (const d of new Set(Object.values(anchors.defaultDecoration))) names.add(`deco_${d}`);
   for (const d of ['tulip', 'cosmos', 'hydrangea', 'sakura', 'daisy', 'sprout', 'clover', 'seaweed', 'coral', 'shell']) {
@@ -49,7 +54,7 @@ function decode(buf) {
   return { width: img.width, height: img.height, data: new Uint8Array(UPNG.toRGBA8(img)[0]) };
 }
 
-/** body-mask:白さ×濃さ を灰色にする(白=色を付ける、黒・透明=付けない) */
+/** body-mask・手のマスク:白さ×濃さ を灰色にする(白=色を付ける、黒・透明=付けない) */
 function maskToGray(img) {
   const d = img.data;
   for (let i = 0; i < d.length; i += 4) {
@@ -153,7 +158,7 @@ for (const file of sources.sort()) {
     files[name] = prev;
   } else {
     let img = decode(buf);
-    if (name.endsWith('_body-mask')) img = maskToGray(img);
+    if (name.endsWith('_body-mask') || name.endsWith('_mask')) img = maskToGray(img);
     const box = contentBox(img);
     if (!box) {
       console.warn(`全部透明なので使いません:${file}`);
