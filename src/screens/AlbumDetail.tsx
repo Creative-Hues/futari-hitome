@@ -63,7 +63,7 @@ export function AlbumDetail({ id }: { id: string }) {
         {finished?.length === 0 && (
           <div class="album-hero card">
             {looks && (
-              <Partner animal={animal} look={looks.look(animal)} name={name} color={work.color} progress={1} live />
+              <Partner animal={animal} look={looks.look(animal)} name={name} color={work.color} tool={work.tool} progress={1} live />
             )}
           </div>
         )}

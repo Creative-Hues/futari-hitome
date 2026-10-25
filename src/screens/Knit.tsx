@@ -291,6 +291,7 @@ export function Knit({ id }: { id: string }) {
           look={partner ? lookOf(partner, allWorks) : undefined}
           name={name}
           color={shown.color}
+          tool={shown.tool}
           progress={overallProgress(shown)}
           motion={motion}
           live

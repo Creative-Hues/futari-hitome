@@ -6,6 +6,8 @@ import roomSvg from '../../assets/backgrounds/room_template.svg?raw';
 import { ITEM_SHADE, ROOM_SHADE } from '../config/room';
 import { SKY } from '../config/sky';
 import { decorationSvg } from '../data/animals';
+import { decorationArt, roomArt } from '../data/art';
+import { useArtUrls } from '../lib/artImage';
 import { ROOM_SPOTS, defaultInteriorShape, interiorSvg } from '../data/wear';
 import { shade } from '../lib/color';
 import type { RoomData, Work } from '../lib/db';
@@ -43,21 +45,39 @@ export function roomVars(room: RoomData): Record<string, string> {
 export function Scene({ kind, room, works = [] }: { kind: SceneKind; room?: RoomData; works?: Work[] }) {
   const items = room ? displayedWorks(room, works) : [];
   const itemsKey = items.map((w) => `${w.id}:${w.interiorShape}:${w.color}`).join(',');
+  // 飾った作品の新しい絵(PNG)は、作品の色を付けた画像がそろってから置く
+  const shapes = items.map((w) => w.interiorShape ?? defaultInteriorShape(w.kind));
+  const pngs = shapes.map((s) => roomArt(s));
+  const loaded = useArtUrls(
+    pngs.flatMap((p, i) => (p ? [{ href: p.href, tint: { mode: 'multiply' as const, color: items[i].color } }] : [])),
+  );
+  const urls = loaded.state === 'ready' ? loaded.urls : null;
   const markup = useMemo(() => {
     let content: RoomContent | undefined;
     if (kind === 'room' && room) {
+      let n = 0;
       content = {
         flower: decorationSvg(room.flower),
-        items: items.map((w, i) => ({
-          svg: interiorSvg(w.interiorShape ?? defaultInteriorShape(w.kind)),
-          spot: ROOM_SPOTS[i],
-          color: w.color,
-          shade: shade(w.color, ITEM_SHADE),
-        })),
+        flowerPng: decorationArt(room.flower),
+        // 新しい絵の画像がまだそろっていない作品は、そろうまで置かない(読めなかったときは今のSVG)
+        items: items.flatMap((w, i) => {
+          const p = pngs[i];
+          if (p && loaded.state === 'loading') return [];
+          const href = p && urls ? urls[n++] : null;
+          return [
+            {
+              svg: interiorSvg(shapes[i]),
+              spot: ROOM_SPOTS[i],
+              color: w.color,
+              shade: shade(w.color, ITEM_SHADE),
+              png: p && href ? { ...p, href } : null,
+            },
+          ];
+        }),
       };
     }
     return prepareScene(RAW[kind], kind, uniquePrefix(kind[0]), content);
-  }, [kind, room?.flower, itemsKey, !!room]);
+  }, [kind, room?.flower, itemsKey, !!room, urls?.join(','), loaded.state]);
   const time = useTimeOfDay();
   const c = SKY[time];
 

@@ -1,6 +1,6 @@
 // 色の計算(選んだ色から、影や線の少し濃い色を作る)
 
-function hexToRgb(hex: string): [number, number, number] {
+export function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
   const full = h.length === 3 ? [...h].map((c) => c + c).join('') : h;
   const n = parseInt(full, 16);

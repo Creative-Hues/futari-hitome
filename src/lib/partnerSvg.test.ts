@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import anchors from '../../assets/animals/anchors.json';
-import { knitHeight, preparePartner } from './partnerSvg';
+import { eyeFill, knitHeight, preparePartner, preparePngPartner, type PartnerPng } from './partnerSvg';
 import { parseSvg } from './svgPrep';
 
 const read = (p: string) => readFileSync(`assets/${p}`, 'utf8');
@@ -97,5 +97,86 @@ describe('編み地の高さ', () => {
     expect(knitHeight(-1)).toBe(4);
     expect(knitHeight(3)).toBe(44);
     expect(knitHeight(NaN)).toBe(4);
+  });
+});
+
+describe('編み地の高さ(新しい絵)', () => {
+  it('art.json の いちばん短いとき〜長いとき に合わせる', () => {
+    expect(knitHeight(0, 5, 45)).toBe(5);
+    expect(knitHeight(0.5, 5, 45)).toBe(25);
+    expect(knitHeight(1, 5, 45)).toBe(45);
+  });
+});
+
+describe('新しい絵(PNG)の子', () => {
+  const img = (name: string, x = 10, y = 20, w = 30, h = 40) => ({ href: `/art/${name}.png`, x, y, width: w, height: h });
+  const PNG: PartnerPng = {
+    body: img('body', 40, 30, 160, 186),
+    eyes: img('eyes', 90, 95, 60, 12),
+    hands: { l: img('hl'), r: img('hr') },
+    centers: { l: { x: 101, y: 151 }, r: { x: 139, y: 151 } },
+    knit: { x: 105, y: 147, width: 30 },
+    decoration: img('deco', -10, -30, 20, 30),
+  };
+  const make = (animal: (typeof ANIMALS)[number], png: Partial<PartnerPng> = {}, wear = []) =>
+    parseSvg(
+      preparePngPartner({
+        animal: read(`animals/${animal}.svg`),
+        decoration: read(`decorations/${anchors.defaultDecoration[animal]}.svg`),
+        anchor: { x: 120, y: 52 },
+        scale: anchors.decorationScale,
+        prefix: 'x0-',
+        wear,
+        png: { ...PNG, ...png },
+      }),
+    );
+  const hrefs = (e: Element) => Array.from(e.querySelectorAll('image')).map((i) => i.getAttribute('href'));
+
+  for (const animal of ANIMALS) {
+    it(`${animal}:重なりは 影 → 体 → 目 → 編み地 → 左右の手 → 頭飾り。動かすまとまりの目印は今と同じ`, () => {
+      const root = make(animal);
+      const breath = root.querySelector('.pt-react > .pt-breath')!;
+      expect(breath).not.toBeNull();
+      // 影は呼吸の外(動かない)
+      const shadow = Array.from(root.children).find((c) => c.tagName === 'ellipse')!;
+      expect(shadow.getAttribute('fill')).toBe('#000');
+      expect(Array.from(breath.children).map((c) => c.tagName + (c.getAttribute('class') ? `.${c.getAttribute('class')}` : ''))).toEqual([
+        'image',
+        'g.pt-eye',
+        'rect.pt-knit',
+        'g.pt-hand-l',
+        'g.pt-hand-r',
+        'g',
+      ]);
+      expect(hrefs(breath)).toEqual(['/art/body.png', '/art/eyes.png', '/art/hl.png', '/art/hr.png', '/art/deco.png']);
+      const knit = root.querySelector('.pt-knit')!;
+      expect([knit.getAttribute('x'), knit.getAttribute('y'), knit.getAttribute('width')]).toEqual(['105', '147', '30']);
+      expect(knit.getAttribute('fill')).toBe('url(#x0-knit)');
+      expect(root.querySelector('[id="x0-knit"]')).not.toBeNull();
+      // 手の回転の中心は art.json の値
+      expect(root.querySelector('.pt-hand-l')!.getAttribute('style')).toBe('transform-origin: 101px 151px');
+      expect(root.querySelector('.pt-hand-r')!.getAttribute('style')).toBe('transform-origin: 139px 151px');
+      // 頭飾りは位置の translate の中で揺れる
+      const deco = root.querySelector('.pt-deco')!;
+      expect(deco.parentElement!.getAttribute('transform')).toBe(`translate(120 52) scale(${anchors.decorationScale})`);
+      expect(hrefs(deco)).toEqual(['/art/deco.png']);
+    });
+  }
+
+  it('目・手・頭飾りのPNGがなければ、その部品だけ今のSVG(体の色・目の色の変数も付く)', () => {
+    const root = make('sheep', { eyes: null, hands: null, decoration: null });
+    expect(root.querySelectorAll('circle.pt-eye')).toHaveLength(2);
+    expect(root.querySelector('.pt-eye')!.getAttribute('style')).toContain('var(--eye');
+    expect(root.querySelector('.pt-hand-l')!.querySelectorAll('line')).toHaveLength(2);
+    expect(root.querySelector('.pt-hand-r')!.querySelectorAll('line')).toHaveLength(2);
+    expect(root.querySelector('.pt-deco path, .pt-deco ellipse, .pt-deco circle')).not.toBeNull();
+    // SVGの手は体の色(wool)を使うので、その色の変数も持っている
+    expect(root.querySelector('[id="x0-wool"] stop')!.getAttribute('style')).toContain('var(--body-0');
+    expect(hrefs(root)).toEqual(['/art/body.png']);
+  });
+
+  it('もとの目の色:ひつじは白、ほかは黒', () => {
+    expect(eyeFill(read('animals/sheep.svg'))).toBe('#fdfbff');
+    for (const a of ANIMALS.filter((a) => a !== 'sheep')) expect(eyeFill(read(`animals/${a}.svg`))).toBe('#1a1620');
   });
 });

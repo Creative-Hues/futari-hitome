@@ -128,7 +128,7 @@ export function NewWork() {
                   onClick={() => setPartner(a)}
                 >
                   <span class="thumb">
-                    {looks && <Partner animal={a} look={looks.look(a)} name={looks.name(a)} color={color} progress={0.5} />}
+                    {looks && <Partner animal={a} look={looks.look(a)} name={looks.name(a)} color={color} tool={tool} progress={0.5} />}
                   </span>
                   <span class="name">{ANIMAL_NAMES[a]}</span>
                   {partners?.[a].name.trim() && <span class="nickname">{partners[a].name.trim()}</span>}

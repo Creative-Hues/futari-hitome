@@ -68,6 +68,7 @@ export function Album() {
                   look={looks?.look(owner(w))}
                   name={looks?.name(owner(w))}
                   color={w.color}
+                  tool={w.tool}
                   progress={1}
                 />
               )}

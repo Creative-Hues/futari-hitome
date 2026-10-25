@@ -3,7 +3,11 @@
 //
 // できあがりの重なり(下から):
 //   影 / [ふれあい [呼吸 [体・身につけた作品・編み地・左右の手(.pt-hand-l / .pt-hand-r、手袋もこの中)・頭飾り(.pt-deco)]]]
-import { addClass, children, colorVar, el, parseSvg, prefixIds, serialize, wrap } from './svgPrep';
+//
+// 新しい絵(PNG)の子は preparePngPartner で、同じ重なり・同じ目印のまとまりに PNG を置く(動きの CSS はそのまま使える)。
+// 絵の座標は SVG と同じ 240×240。PNG のない部品は、今のSVGから取り出して置く。
+import type { Placed, Point } from './artConfig';
+import { addClass, children, colorVar, el, image, parseSvg, prefixIds, serialize, SVG_NS, wrap } from './svgPrep';
 import { addWear, type WearInput } from './wearSvg';
 
 const EYE_FILLS = ['#1a1620', '#fdfbff'];
@@ -13,9 +17,15 @@ export const HAND_CENTERS = { l: { x: 102, y: 150 }, r: { x: 138, y: 150 } };
 /** 編み地の高さ(README:試作では4〜44)。p は 0〜1 */
 export const KNIT_MIN = 4;
 export const KNIT_MAX = 44;
-export function knitHeight(p: number): number {
+export function knitHeight(p: number, min = KNIT_MIN, max = KNIT_MAX): number {
   const c = Math.min(1, Math.max(0, Number.isFinite(p) ? p : 0));
-  return Math.round((KNIT_MIN + (KNIT_MAX - KNIT_MIN) * c) * 10) / 10;
+  return Math.round((min + (max - min) * c) * 10) / 10;
+}
+
+/** その子のもとの目の色(ひつじは白、ほかは黒) */
+export function eyeFill(animalSvg: string): string {
+  const m = /<circle\b[^>]*fill="(#1a1620|#fdfbff)"/.exec(animalSvg);
+  return m?.[1] ?? EYE_FILLS[0];
 }
 
 export interface PartnerSvgInput {
@@ -28,37 +38,106 @@ export interface PartnerSvgInput {
   wear?: WearInput[];
 }
 
-export function preparePartner(i: PartnerSvgInput): string {
-  const root = parseSvg(prefixIds(i.animal, i.prefix));
+/** 新しい絵(PNG)の部品。null の部品は今のSVGを使う。位置はすべて 240 の座標(頭飾りは頭飾りの座標) */
+export interface PartnerPng {
+  body: Placed;
+  eyes: Placed | null;
+  hands: { l: Placed; r: Placed } | null;
+  /** 手の回転の中心 */
+  centers: { l: Point; r: Point };
+  /** 編み地の四角の左上と幅(高さは Partner が進み具合で決める) */
+  knit: { x: number; y: number; width: number };
+  decoration: Placed | null;
+}
+
+/** svg の外側の目印(どちらの絵でも同じ) */
+function setRoot(root: Element) {
   root.removeAttribute('width');
   root.removeAttribute('height');
   root.setAttribute('class', 'pt-svg');
   root.setAttribute('aria-hidden', 'true');
   root.setAttribute('focusable', 'false');
+}
 
-  markKnit(root, i.prefix);
+/** 素材のSVGに、動かす部品の目印と色の CSS 変数を付ける */
+function markAll(root: Element, prefix: string) {
+  markKnit(root, prefix);
   markHands(root);
-  markBody(root, i.prefix);
+  markBody(root, prefix);
   for (const c of root.querySelectorAll('circle')) {
     if (EYE_FILLS.includes(c.getAttribute('fill') ?? '')) {
       addClass(c, 'pt-eye');
       colorVar(c, 'fill', '--eye');
     }
   }
-  if (i.wear?.length) addWear(root, i.wear, i.prefix);
+}
 
-  // 影と defs 以外を「呼吸」と「ふれあい」の入れ物に入れる
+export function preparePartner(i: PartnerSvgInput): string {
+  const root = parseSvg(prefixIds(i.animal, i.prefix));
+  setRoot(root);
+  markAll(root, i.prefix);
+  if (i.wear?.length) addWear(root, i.wear, i.prefix);
+  return finish(root, i, null);
+}
+
+/**
+ * 新しい絵(PNG)の子。重なりは SVG と同じ(影 → 体・目 → 身につけた作品 → 編み地 → 左右の手 → 頭飾り)。
+ * 素材のSVGからは、色の模様(defs)・影・編み地の四角と、PNG のない部品(目・手・頭飾り)だけを使う
+ */
+export function preparePngPartner(i: PartnerSvgInput & { png: PartnerPng }): string {
+  const src = parseSvg(prefixIds(i.animal, i.prefix));
+  markAll(src, i.prefix);
+  const root = parseSvg(`<svg xmlns="${SVG_NS}" viewBox="${src.getAttribute('viewBox')}"></svg>`);
+  setRoot(root);
+  const take = (e: Element) => root.appendChild(root.ownerDocument.importNode(e, true)) as Element;
+  const p = i.png;
+
+  for (const c of children(src)) if (c.tagName === 'defs' || isShadow(c)) take(c);
+  root.appendChild(image(root, p.body));
+  if (p.eyes) {
+    const g = el(root, 'g', { class: 'pt-eye' });
+    g.appendChild(image(root, p.eyes));
+    root.appendChild(g);
+  } else {
+    for (const e of src.querySelectorAll('.pt-eye')) take(e);
+  }
+  const knit = src.querySelector('.pt-knit');
+  if (!knit) throw new Error('編み地が見つかりません');
+  const k = take(knit);
+  k.setAttribute('x', String(p.knit.x));
+  k.setAttribute('y', String(p.knit.y));
+  k.setAttribute('width', String(p.knit.width));
+  for (const side of ['l', 'r'] as const) {
+    if (p.hands) {
+      const c = p.centers[side];
+      const g = el(root, 'g', { class: `pt-hand-${side}`, style: `transform-origin: ${c.x}px ${c.y}px` });
+      g.appendChild(image(root, p.hands[side]));
+      root.appendChild(g);
+    } else {
+      take(src.querySelector(`.pt-hand-${side}`)!);
+    }
+  }
+  if (i.wear?.length) addWear(root, i.wear, i.prefix);
+  return finish(root, i, p.decoration);
+}
+
+/** 影と defs 以外を「呼吸」と「ふれあい」の入れ物に入れ、頭飾りを足す */
+function finish(root: Element, i: PartnerSvgInput, decoPng: Placed | null): string {
   const moving = children(root).filter((c) => c.tagName !== 'defs' && !isShadow(c));
   const breath = wrap(moving, 'pt-breath');
   wrap([breath], 'pt-react');
 
   // 頭飾り(anchors.json の位置に translate、大きさは scale。(0,0) が頭に触れる点)
-  const deco = parseSvg(prefixIds(i.decoration, `${i.prefix}d-`));
   const place = el(root, 'g', {
     transform: `translate(${i.anchor.x} ${i.anchor.y}) scale(${i.scale})`,
   });
   const sway = el(root, 'g', { class: 'pt-deco' });
-  for (const c of children(deco)) sway.appendChild(root.ownerDocument.importNode(c, true));
+  if (decoPng) {
+    sway.appendChild(image(root, decoPng));
+  } else {
+    const deco = parseSvg(prefixIds(i.decoration, `${i.prefix}d-`));
+    for (const c of children(deco)) sway.appendChild(root.ownerDocument.importNode(c, true));
+  }
   place.appendChild(sway);
   breath.appendChild(place);
 

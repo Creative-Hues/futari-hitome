@@ -50,6 +50,7 @@ export function Celebration({
             look={looks.look(work.partner)}
             name={name}
             color={work.color}
+            tool={work.tool}
             progress={1}
             live
             celebrate

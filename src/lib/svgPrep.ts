@@ -32,6 +32,18 @@ export function el(owner: Element, tag: string, attrs: Record<string, string> = 
   return e;
 }
 
+/** 画像(新しい絵のPNG)を、絵の座標の四角に置く */
+export function image(owner: Element, p: { href: string; x: number; y: number; width: number; height: number }): SVGElement {
+  return el(owner, 'image', {
+    href: p.href,
+    x: String(p.x),
+    y: String(p.y),
+    width: String(p.width),
+    height: String(p.height),
+    preserveAspectRatio: 'none',
+  });
+}
+
 /** 中身はそのままで、子要素をまとめて新しい g で包む(元の要素の transform を消さずに、CSSで動かせるように) */
 export function wrapChildren(parent: Element, cls: string): SVGElement {
   const g = el(parent, 'g', { class: cls });

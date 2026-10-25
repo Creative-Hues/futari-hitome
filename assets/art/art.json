@@ -1,0 +1,13 @@
+{
+  "animals": {
+    "sheep": {
+      "decoration": { "x": 480, "y": 200 },
+      "hatDecorationY": 140,
+      "handLeft": { "x": 408, "y": 600 },
+      "handRight": { "x": 552, "y": 600 },
+      "knit": { "x": 416, "y": 584, "width": 128, "minHeight": 16, "maxHeight": 176 }
+    }
+  },
+  "decorations": {},
+  "room": {}
+}

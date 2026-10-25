@@ -51,7 +51,7 @@ export function Record({ id }: { id: string }) {
       <div class="record">
         <div class="gift card">
           <span class="thumb">
-            {looks && <Partner animal={animal} look={looks.look(animal)} name={name} color={work.color} progress={1} />}
+            {looks && <Partner animal={animal} look={looks.look(animal)} name={name} color={work.color} tool={work.tool} progress={1} />}
           </span>
           <span>
             <span class="gift-name">{work.name}</span>

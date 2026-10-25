@@ -64,6 +64,7 @@ export function RoomSettings() {
                 look={looks.look(resident.animal)}
                 name={looks.name(resident.animal)}
                 color={resident.holding?.color ?? resident.last?.color}
+                tool={resident.holding?.tool}
                 progress={resident.holding ? overallProgress(resident.holding) : 0}
                 live
               />

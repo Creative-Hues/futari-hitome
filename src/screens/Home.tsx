@@ -74,6 +74,7 @@ export function Home() {
             look={looks.look(animal)}
             name={looks.name(animal)}
             color={holding?.color ?? last?.color}
+            tool={holding?.tool}
             progress={holding ? overallProgress(holding) : 0}
             live
             interactive
@@ -175,7 +176,7 @@ function WorkCard({
     <a class="work-card card" href={routes.knit(work.id)} draggable={false} {...bind}>
       <span class="thumb">
         {looks && (
-          <Partner animal={work.partner} look={looks.look(work.partner)} name={name} color={work.color} progress={p} />
+          <Partner animal={work.partner} look={looks.look(work.partner)} name={name} color={work.color} tool={work.tool} progress={p} />
         )}
       </span>
       <span class="info">
@@ -213,7 +214,7 @@ function PausedCard({
       <div class="paused-main">
         <span class="thumb">
           {looks && (
-            <Partner animal={work.partner} look={looks.look(work.partner)} name={name} color={work.color} progress={p} />
+            <Partner animal={work.partner} look={looks.look(work.partner)} name={name} color={work.color} tool={work.tool} progress={p} />
           )}
         </span>
         <span class="info">

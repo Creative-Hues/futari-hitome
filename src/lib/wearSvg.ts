@@ -6,7 +6,11 @@
 //    模様の中の CSS 変数(--item)は、模様が置かれた場所の親から受け継ぐため。外に出すと色が付かない
 //  - id は作品ごとに別の文字を頭に付ける(同じ画面に同じ種類が2つあってもぶつからない)
 import { WEAR_STACK, type WearDept } from '../data/wear';
-import { addClass, el, parseSvg, prefixIds, serialize } from './svgPrep';
+import type { Placed } from './artConfig';
+import { addClass, el, image, parseSvg, prefixIds, serialize } from './svgPrep';
+
+/** 新しい絵(PNG)の身につける作品。色はもう付けてある。手袋は左右 */
+export type WearPng = { body: Placed } | { left: Placed; right: Placed };
 
 export interface WearInput {
   dept: WearDept;
@@ -15,6 +19,15 @@ export interface WearInput {
   /** 作品の色と、約15%暗くした色 */
   color: string;
   shade: string;
+  /** 新しい絵(PNG)があればこちらを置く */
+  png?: WearPng;
+}
+
+/** PNG の作品を入れる入れ物(色は画像に付けてあるので、目印だけ) */
+function pngBox(owner: Element, p: Placed): SVGElement {
+  const box = el(owner, 'g', { class: 'pt-wear' });
+  box.appendChild(image(owner, p));
+  return box;
 }
 
 /** 作品の色を受け継がせる入れ物 */
@@ -38,7 +51,19 @@ export function addWear(root: Element, items: WearInput[], prefix: string) {
   for (const item of sorted) {
     const p = `${prefix}w-${item.dept}-`;
     const doc = root.ownerDocument;
-    if (item.dept === 'paw') {
+    const png = item.png;
+    if (png) {
+      if ('left' in png) {
+        const hl = root.querySelector('.pt-hand-l');
+        const hr = root.querySelector('.pt-hand-r');
+        if (!hl || !hr) throw new Error('手が見つかりません');
+        hl.appendChild(pngBox(root, png.left));
+        hr.appendChild(pngBox(root, png.right));
+      } else {
+        if (!knit) throw new Error('編み地が見つかりません');
+        knit.parentNode!.insertBefore(pngBox(root, png.body), knit);
+      }
+    } else if (item.dept === 'paw') {
       const left = group(item.svg, p, 'wear-hand-left');
       const right = group(item.svg, p, 'wear-hand-right');
       const hl = root.querySelector('.pt-hand-l');
@@ -73,11 +98,19 @@ export function interiorItem(
   color: string,
   shade: string,
   prefix: string,
+  /** 新しい絵(PNG。色はもう付けてある)があればこちらを置く */
+  png?: Placed | null,
 ): Element {
-  const g = group(svg, prefix, 'wear-room');
-  if (!g) throw new Error('部屋に飾る絵が見つかりません');
   const place = el(root, 'g', { transform: `translate(${spot.x} ${spot.y}) scale(${spot.scale})` });
   addClass(place, 'sc-item');
+  if (png) {
+    const box = el(root, 'g', { class: 'sc-item-color' });
+    box.appendChild(image(root, png));
+    place.appendChild(box);
+    return place;
+  }
+  const g = group(svg, prefix, 'wear-room');
+  if (!g) throw new Error('部屋に飾る絵が見つかりません');
   const box = colorBox(root, color, shade, 'sc-item-color');
   box.appendChild(root.ownerDocument.importNode(g, true));
   place.appendChild(box);
@@ -85,10 +118,17 @@ export function interiorItem(
 }
 
 /** 部屋に飾る作品を1つだけ、小さな絵として出すためのSVG(作品の色で) */
-export function interiorPreview(svg: string, viewBox: string, color: string, shade: string, prefix: string): string {
+export function interiorPreview(
+  svg: string,
+  viewBox: string,
+  color: string,
+  shade: string,
+  prefix: string,
+  png?: Placed | null,
+): string {
   const root = parseSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"></svg>`);
   root.setAttribute('aria-hidden', 'true');
   root.setAttribute('focusable', 'false');
-  root.appendChild(interiorItem(root, svg, { x: 0, y: 0, scale: 1 }, color, shade, prefix));
+  root.appendChild(interiorItem(root, svg, { x: 0, y: 0, scale: 1 }, color, shade, prefix, png));
   return serialize(root);
 }

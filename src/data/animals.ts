@@ -1,6 +1,7 @@
 // 6匹と頭飾り10種類の素材(assets/ のSVGを文字として読み込む。中身は変えない)
 import anchors from '../../assets/animals/anchors.json';
 import type { AnimalId } from '../lib/db';
+import { decorationArt } from './art';
 
 export const ANIMALS: AnimalId[] = ['sheep', 'cat', 'stoat', 'axolotl', 'seal', 'otter'];
 
@@ -82,8 +83,16 @@ export function partnerName(animal: AnimalId, partner?: { name: string } | null)
   return partner?.name.trim() || ANIMAL_NAMES[animal];
 }
 
-/** 頭飾りを小さな絵として出すSVG(外側の大きさの指定だけ外す。中身は変えない) */
+/** 頭飾りを小さな絵として出すSVG(外側の大きさの指定だけ外す。中身は変えない)。新しい絵(PNG)があればそちら */
 export function decorationIcon(id: DecorationId): string {
+  const png = decorationArt(id);
+  if (png) {
+    const a = (n: number) => String(n);
+    return (
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${anchors.decorationViewBox}" aria-hidden="true" focusable="false">` +
+      `<image href="${png.href}" x="${a(png.x)}" y="${a(png.y)}" width="${a(png.width)}" height="${a(png.height)}" preserveAspectRatio="none"/></svg>`
+    );
+  }
   return decorationSvg(id).replace(/<svg\b[^>]*>/, (tag) =>
     tag.replace(/\s(width|height)="[^"]*"/g, '').replace('<svg', '<svg aria-hidden="true" focusable="false"'),
   );

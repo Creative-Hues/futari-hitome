@@ -113,6 +113,14 @@ describe('完成したとき・編みかけに戻したとき', () => {
     const look = lookOf(p, [done('a', 'neck', '2026-10-01'), { ...done('b', 'paw', ''), status: 'wip' as const }]);
     expect(look.wear).toEqual([{ dept: 'neck', color: '#e8505c' }]);
   });
+
+  it('手に持つ道具は、その子が今編んでいる作品の編み方(なければ棒針)', () => {
+    const p = { ...newPartner('cat'), knittingWorkId: 'k' };
+    const wip = { ...done('k', 'neck', ''), status: 'wip' as const, tool: 'crochet' as const };
+    expect(lookOf(p, [wip]).tool).toBe('crochet');
+    expect(lookOf(p, [{ ...wip, status: 'done' as const }]).tool).toBe('knit');
+    expect(lookOf({ ...p, knittingWorkId: null }, [wip]).tool).toBe('knit');
+  });
 });
 
 describe('音声で数える言葉', () => {

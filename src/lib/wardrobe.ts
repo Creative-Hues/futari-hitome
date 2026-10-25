@@ -1,7 +1,7 @@
 // 身につける・部屋に飾るの決め方(画面と切り離してテストする)
 import type { DecorationId } from '../data/animals';
 import { MAX_DISPLAY, WEAR_DEPTS, type WearDept } from '../data/wear';
-import type { AnimalId, PartnerData, RoomData, Work } from './db';
+import type { AnimalId, KnitTool, PartnerData, RoomData, Work } from './db';
 
 type DoneWork = Pick<Work, 'id' | 'department' | 'status' | 'giftedTo' | 'finishedAt'>;
 
@@ -69,16 +69,21 @@ export interface WornItem {
   color: string;
 }
 
-/** パートナーの見た目(頭飾り・体の色・目の色・身につけているもの) */
+/** パートナーの見た目(頭飾り・体の色・目の色・身につけているもの・手に持つ道具) */
 export interface Look {
   decoration: DecorationId;
   bodyColor: string | null;
   eyeColor: string | null;
   wear: WornItem[];
+  /** 今編んでいる作品の編み方(なければ棒針)。新しい絵の手の道具に使う */
+  tool: KnitTool;
 }
 
 /** 個体データと作品から、今の見た目を作る(なくなった作品・完成でなくなった作品は外して考える) */
-export function lookOf(p: PartnerData, works: Pick<Work, 'id' | 'department' | 'status' | 'giftedTo' | 'color'>[]): Look {
+export function lookOf(
+  p: PartnerData,
+  works: (Pick<Work, 'id' | 'department' | 'status' | 'giftedTo' | 'color'> & { tool?: KnitTool })[],
+): Look {
   const byId = new Map(works.map((w) => [w.id, w]));
   const wear: WornItem[] = [];
   for (const dept of WEAR_DEPTS) {
@@ -87,5 +92,7 @@ export function lookOf(p: PartnerData, works: Pick<Work, 'id' | 'department' | '
       wear.push({ dept, color: w.color });
     }
   }
-  return { decoration: p.decoration, bodyColor: p.bodyColor, eyeColor: p.eyeColor, wear };
+  const knitting = byId.get(p.knittingWorkId ?? '');
+  const tool = (knitting?.status === 'wip' && knitting.tool) || 'knit';
+  return { decoration: p.decoration, bodyColor: p.bodyColor, eyeColor: p.eyeColor, wear, tool };
 }

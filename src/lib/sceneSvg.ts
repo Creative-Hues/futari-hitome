@@ -2,7 +2,8 @@
 // assets/ のファイルは変えない。目印付けと、夜の星・暗くするための薄い幕を足すだけ。
 // 部屋は room_template.svg を使い、鉢植えの花を頭飾りの花に差し替え、飾った作品を置く。
 import { DIM_COLOR, STAR_COLOR } from '../config/sky';
-import { addClass, children, colorVar, el, parseSvg, prefixIds, serialize, wrap, wrapChildren } from './svgPrep';
+import type { Placed } from './artConfig';
+import { addClass, children, colorVar, el, image, parseSvg, prefixIds, serialize, wrap, wrapChildren } from './svgPrep';
 import { interiorItem } from './wearSvg';
 
 export type SceneKind = 'meadow' | 'room';
@@ -11,7 +12,16 @@ export type SceneKind = 'meadow' | 'room';
 export interface RoomContent {
   /** 頭飾りの花のSVG(文字) */
   flower: string;
-  items: { svg: string; spot: { x: number; y: number; scale: number }; color: string; shade: string }[];
+  /** 頭飾りの花の新しい絵(PNG。頭飾りの座標)。あればこちら */
+  flowerPng?: Placed | null;
+  items: {
+    svg: string;
+    spot: { x: number; y: number; scale: number };
+    color: string;
+    shade: string;
+    /** 新しい絵(PNG。色はもう付けてある)。あればこちら */
+    png?: Placed | null;
+  }[];
 }
 
 /** 夜の星の位置と大きさ(雲や窓の桟に重ならない場所) */
@@ -45,7 +55,7 @@ export function prepareScene(raw: string, kind: SceneKind, prefix: string, room?
   if (room) {
     // テンプレートの一番外に書いてある見本の色を外す(外の入れ物から色の変数を渡すため)
     root.removeAttribute('style');
-    swapFlower(root, room.flower, `${prefix}f-`);
+    swapFlower(root, room.flower, `${prefix}f-`, room.flowerPng ?? null);
   }
   root.setAttribute('class', 'sc-svg');
   root.setAttribute('aria-hidden', 'true');
@@ -95,7 +105,7 @@ export function prepareScene(raw: string, kind: SceneKind, prefix: string, room?
 
   // 飾った作品(家具の上、暗くする幕と星の下)
   room?.items.forEach((it, i) => {
-    root.appendChild(interiorItem(root, it.svg, it.spot, it.color, it.shade, `${prefix}i${i}-`));
+    root.appendChild(interiorItem(root, it.svg, it.spot, it.color, it.shade, `${prefix}i${i}-`, it.png));
   });
 
   // 暗くする幕(昼は透明)と夜の星
@@ -116,11 +126,15 @@ export function prepareScene(raw: string, kind: SceneKind, prefix: string, room?
 }
 
 /** 窓辺の鉢植えの花を、頭飾りの花に差し替える(見本の部屋と同じく、花の位置のまとまりの中身だけを入れ替える) */
-function swapFlower(root: Element, flowerSvg: string, prefix: string) {
+function swapFlower(root: Element, flowerSvg: string, prefix: string, png: Placed | null) {
   const pot = children(root).find((g) => g.tagName === 'g' && g.getAttribute('transform') === 'translate(244 133)');
   const slot = pot?.firstElementChild;
   if (!slot || slot.tagName !== 'g') throw new Error('鉢植えの花が見つかりません');
   while (slot.firstChild) slot.removeChild(slot.firstChild);
+  if (png) {
+    slot.appendChild(image(root, png));
+    return;
+  }
   const flower = parseSvg(prefixIds(flowerSvg, prefix));
   for (const c of children(flower)) slot.appendChild(root.ownerDocument.importNode(c, true));
 }

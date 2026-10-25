@@ -157,3 +157,47 @@ describe('部屋(room_template.svg)', () => {
     expect(before(item, root.querySelector('.sc-stars')!)).toBe(true);
   });
 });
+
+describe('新しい絵(PNG)の身につける作品・部屋に飾る作品', () => {
+  const img = (name: string) => ({ href: `/art/${name}.png`, x: 1, y: 2, width: 3, height: 4 });
+
+  it('体の作品は編み地のすぐ前、手袋は左右の手の中(手の絵のあと)に、色を付けた画像を置く', () => {
+    const items: WearInput[] = [
+      { ...item('neck_cat'), png: { body: img('neck') } },
+      { ...item('paws_cat'), png: { left: img('pl'), right: img('pr') } },
+    ];
+    const root = dress('cat', items);
+    const knit = root.querySelector('.pt-knit')!;
+    const neck = root.querySelector('image[href="/art/neck.png"]')!.parentElement!;
+    expect(neck.getAttribute('class')).toBe('pt-wear');
+    expect(neck.nextElementSibling).toBe(knit);
+    const hl = root.querySelector('.pt-hand-l')!;
+    const hr = root.querySelector('.pt-hand-r')!;
+    expect(hl.lastElementChild!.querySelector('image')!.getAttribute('href')).toBe('/art/pl.png');
+    expect(hr.lastElementChild!.querySelector('image')!.getAttribute('href')).toBe('/art/pr.png');
+    // PNG のときは素材の SVG の作品は入らない
+    expect(root.querySelector('[id*="wear-body"], [id*="wear-hand"]')).toBeNull();
+  });
+
+  it('部屋に飾る作品のPNGは、置き場所の中に画像で置く。鉢植えの花もPNGにできる', () => {
+    const out = parseSvg(
+      prepareScene(read('backgrounds/room_template.svg'), 'room', 'r0-', {
+        flower: read('decorations/daisy.svg'),
+        flowerPng: img('daisy'),
+        items: [
+          {
+            svg: read('wear/interior_cushion.svg'),
+            spot: wear.interior.roomSpots[0],
+            color: '#e8505c',
+            shade: '#c04450',
+            png: img('cushion'),
+          },
+        ],
+      }),
+    );
+    const item = out.querySelector('.sc-item')!;
+    expect(item.querySelector('image')!.getAttribute('href')).toBe('/art/cushion.png');
+    expect(item.querySelector('[id*="wear-room"]')).toBeNull();
+    expect(out.querySelector('.sc-sway image[href="/art/daisy.png"]')).not.toBeNull();
+  });
+});
