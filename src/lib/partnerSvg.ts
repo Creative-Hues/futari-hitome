@@ -1,14 +1,23 @@
 // どうぶつ+頭飾りのSVGを、動かせる形に下ごしらえする。
 // assets/ のファイルは変えない。読み込んだあとメモリの中で、目印付けと並びのまとめ直しだけをする。
 //
-// できあがりの重なり(下から):
-//   影 / [ふれあい [呼吸 [体・身につけた作品・編み地・左右の手(.pt-hand-l / .pt-hand-r、手袋もこの中)・頭飾り(.pt-deco)]]]
+// できあがり(HTML。下から):
+//   <div .pt-stage>
+//     <svg .pt-shadow>影</svg>                                   … 動かない
+//     <div .pt-react>                                             … ふれあい・お祝い
+//       <svg .pt-svg .pt-breath>体・身につけた作品・編み地・左右の手(.pt-hand-l / .pt-hand-r、手袋もこの中)・頭飾り(.pt-deco)</svg>  … 呼吸
+//     </div>
+//   </div>
+// 体ごと動かす動き(呼吸・ふれあい・お祝い)は、SVGの中の g ではなく、SVG そのもの(HTMLの部品)で動かす。
+// iPhone の Safari は、SVGの中の g を CSS で動かすと、clipPath・mask で切り取った部分(体の編み目など)の
+// 描き直しがずれることがあるため。HTMLの部品の動きは、描き上がった絵のまま動かすので、ずれない。
+// 切り取りの型(clipPath・mask)は、いちばん上の defs にまとめる(見た目は同じ)。
 // かぎ針の作品では、左右の手から棒針を外し、右の手にかぎ針を持たせる(assets/tools/README.md)。
 //
 // 新しい絵(PNG)の子は preparePngPartner で、同じ重なり・同じ目印のまとまりに PNG を置く(動きの CSS はそのまま使える)。
 // 絵の座標は SVG と同じ 240×240。PNG のない部品は、今のSVGから取り出して置く。
 import type { Placed, Point } from './artConfig';
-import { addClass, children, colorVar, el, image, parseSvg, prefixIds, serialize, SVG_NS, wrap } from './svgPrep';
+import { addClass, children, colorVar, el, image, parseSvg, prefixIds, serialize, SVG_NS } from './svgPrep';
 import { addWear, type WearInput } from './wearSvg';
 
 const EYE_FILLS = ['#1a1620', '#fdfbff'];
@@ -125,11 +134,8 @@ export function preparePngPartner(i: PartnerSvgInput & { png: PartnerPng }): str
   return finish(root, i, p.decoration);
 }
 
-/** 影と defs 以外を「呼吸」と「ふれあい」の入れ物に入れ、頭飾りを足す */
+/** 頭飾りを足し、影を別の SVG に分けて、動かす入れ物(HTML)に入れる */
 function finish(root: Element, i: PartnerSvgInput, decoPng: Placed | null): string {
-  const moving = children(root).filter((c) => c.tagName !== 'defs' && !isShadow(c));
-  const breath = wrap(moving, 'pt-breath');
-  wrap([breath], 'pt-react');
 
   // 頭飾り(anchors.json の位置に translate、大きさは scale。(0,0) が頭に触れる点)
   const place = el(root, 'g', {
@@ -143,9 +149,24 @@ function finish(root: Element, i: PartnerSvgInput, decoPng: Placed | null): stri
     for (const c of children(deco)) sway.appendChild(root.ownerDocument.importNode(c, true));
   }
   place.appendChild(sway);
-  breath.appendChild(place);
+  root.appendChild(place);
 
-  return serialize(root);
+  // 切り取りの型を、いちばん上の defs へ(どこに置いても、切り取られる部品の位置で使われる)
+  const defs = children(root).find((c) => c.tagName === 'defs') ?? root.insertBefore(el(root, 'defs'), root.firstChild);
+  for (const c of root.querySelectorAll('clipPath, mask')) if (c.parentNode !== defs) defs.appendChild(c);
+
+  // 影は動かない SVG に分ける
+  const shadow = parseSvg(`<svg xmlns="${SVG_NS}" viewBox="${root.getAttribute('viewBox')}"></svg>`);
+  shadow.setAttribute('class', 'pt-shadow');
+  shadow.setAttribute('aria-hidden', 'true');
+  shadow.setAttribute('focusable', 'false');
+  for (const c of children(root).filter(isShadow)) {
+    shadow.appendChild(shadow.ownerDocument.importNode(c, true));
+    c.remove();
+  }
+
+  addClass(root, 'pt-breath');
+  return `<div class="pt-stage">${serialize(shadow)}<div class="pt-react">${serialize(root)}</div></div>`;
 }
 
 function isShadow(e: Element): boolean {

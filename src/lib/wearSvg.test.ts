@@ -21,7 +21,7 @@ function item(key: keyof typeof wear.worn, color = '#e8505c'): WearInput {
 
 function dress(animal: Animal, items: WearInput[], prefix = 'x0-', anchorY?: number, hook?: string) {
   const a = anchors.anchors[animal];
-  return parseSvg(
+  return parsePartner(
     preparePartner({
       animal: read(`animals/${animal}.svg`),
       decoration: read(`decorations/${anchors.defaultDecoration[animal]}.svg`),
@@ -33,6 +33,9 @@ function dress(animal: Animal, items: WearInput[], prefix = 'x0-', anchorY?: num
     }),
   );
 }
+
+/** 下ごしらえした絵(HTML)を読む。いちばん外の .pt-stage を返す */
+const parsePartner = (html: string) => new DOMParser().parseFromString(html, 'text/html').body.firstElementChild!;
 
 /** 文書の中で a が b より前にあるか */
 const before = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & 4);

@@ -153,12 +153,33 @@ button {
   aspect-ratio: 1;
 }
 
-.partner > svg {
+/* 絵の入れ物(partnerSvg.ts):影の SVG と、体ごと動かす入れ物(.pt-react > .pt-breath の SVG)を重ねる。
+   体ごと動かす動きは HTML の部品で動かす(iPhone で体の編み目がずれないように)。
+   入れ物の幅を「大きさの入れ物」にして、動く距離を絵の座標(幅240)で決める(--u が絵の座標の1) */
+.pt-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  container-type: inline-size;
+  --u: calc(100cqw / 240);
+}
+
+.pt-react,
+.pt-stage svg {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.pt-stage svg {
   /* 跳ねたり頭飾りが揺れたりしても切れないように */
   overflow: visible;
+}
+
+/* 影は体の下に重ねる */
+.pt-stage > .pt-shadow {
+  position: absolute;
+  inset: 0;
 }
 
 .partner[role='button'] {
@@ -830,7 +851,8 @@ button {
   transform-origin: 138px 150px;
 }
 .pt-react {
-  transform-origin: 120px 214px;
+  /* 絵の座標の (120, 214)。214 / 240 = 89.1667% */
+  transform-origin: 50% 89.1667%;
 }
 .pt-eye {
   transform-box: fill-box;
@@ -863,7 +885,7 @@ button {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(var(--breath-distance));
+    transform: translateY(calc(var(--breath-distance) * var(--u)));
   }
 }
 
@@ -980,10 +1002,10 @@ button {
     transform: translateY(0);
   }
   28% {
-    transform: translateY(calc(-1 * var(--react-hop)));
+    transform: translateY(calc(-1 * var(--react-hop) * var(--u)));
   }
   72% {
-    transform: translateY(calc(-0.3 * var(--react-hop)));
+    transform: translateY(calc(-0.3 * var(--react-hop) * var(--u)));
   }
 }
 
@@ -1600,10 +1622,10 @@ textarea {
   }
   10%,
   30% {
-    transform: translateY(calc(-1 * var(--celebrate-hop))) rotate(0);
+    transform: translateY(calc(-1 * var(--celebrate-hop) * var(--u))) rotate(0);
   }
   48% {
-    transform: translateY(calc(-0.5 * var(--celebrate-hop))) rotate(0);
+    transform: translateY(calc(-0.5 * var(--celebrate-hop) * var(--u))) rotate(0);
   }
   68% {
     transform: translateY(0) rotate(calc(-1 * var(--celebrate-wiggle)));
@@ -1822,11 +1844,11 @@ textarea {
 /* ---------- フェーズ4:なかま・パートナーの画面・模様替え ---------- */
 
 /* 頭飾りが絵の上の端からはみ出すとき(ひつじの帽子)は、枠のある場所で絵を少し縮めて切れないようにする */
-.thumb .partner[data-tall] > svg,
-.pic .partner[data-tall] > svg,
-.partner-hero .partner[data-tall] > svg,
-.album-card .cover .partner[data-tall] > svg,
-.album-hero .partner[data-tall] > svg {
+.thumb .partner[data-tall] > .pt-stage,
+.pic .partner[data-tall] > .pt-stage,
+.partner-hero .partner[data-tall] > .pt-stage,
+.album-card .cover .partner[data-tall] > .pt-stage,
+.album-hero .partner[data-tall] > .pt-stage {
   transform: scale(var(--tall-scale));
   transform-origin: 50% 100%;
 }

@@ -43,7 +43,7 @@
 
   /* パートナーと景色の動き。距離は絵の中の大きさ(どうぶつの絵は幅240) */
   --breath-duration: 3.4s; /* 呼吸1回の長さ */
-  --breath-distance: 2.5px; /* 呼吸で上下する高さ */
+  --breath-distance: 2.5; /* 呼吸で上下する高さ(絵の座標。幅240の中で) */
   --blink-interval: 5s; /* まばたきの間隔 */
   --knit-angle: 9deg; /* 数えたときに手(編み針)が動く角度 */
   --knit-duration: 260ms; /* 数えたときの手の動き1回の長さ */
@@ -52,7 +52,7 @@
   --unravel-count: 3; /* ほどく手の動きの回数 */
   --knit-grow-duration: 450ms; /* 編み地が伸び縮みする速さ */
   --react-duration: 750ms; /* ふれあいのしぐさの長さ */
-  --react-hop: 16px; /* ぴょんと跳ねる高さ */
+  --react-hop: 16; /* ぴょんと跳ねる高さ(絵の座標。幅240の中で) */
   --react-wiggle: 7deg; /* 左右にゆれる角度 */
   --react-tilt: 12deg; /* 首をかしげる角度 */
   --deco-sway-angle: 5deg; /* 頭飾りの揺れの角度 */
@@ -67,7 +67,7 @@
   /* 完成のお祝い */
   --celebrate-duration: 2.4s; /* 跳ねる・ゆれる、ひとまとまりの長さ */
   --celebrate-count: 3; /* ひとまとまりをくり返す回数(infinite でずっと) */
-  --celebrate-hop: 22px; /* 跳ねる高さ */
+  --celebrate-hop: 22; /* 跳ねる高さ(絵の座標。幅240の中で) */
   --celebrate-wiggle: 8deg; /* 左右にゆれる角度 */
   --celebrate-hand-angle: 16deg; /* 手(編み針)をふる角度 */
   --celebrate-hand-duration: 420ms; /* 手をふる1回の長さ */

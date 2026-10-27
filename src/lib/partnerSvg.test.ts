@@ -22,9 +22,12 @@ function prepare(animal: (typeof ANIMALS)[number], prefix = 'x0-', hook?: string
   });
 }
 
+/** 下ごしらえした絵(HTML)を読む。いちばん外の .pt-stage を返す */
+const parsePartner = (html: string) => new DOMParser().parseFromString(html, 'text/html').body.firstElementChild!;
+
 /** 形を表す要素を、目印(class・style)と id の頭の文字を除いて並べたもの */
-function shapes(svg: string, prefix = ''): string[] {
-  const root = parseSvg(svg);
+function shapes(svg: string | Element, prefix = ''): string[] {
+  const root = typeof svg === 'string' ? parseSvg(svg) : svg;
   return Array.from(root.querySelectorAll('circle, ellipse, rect, path, line, polygon, polyline, stop'))
     .filter((e) => !e.closest('.sc-stars, .sc-dim'))
     .map((e) => {
@@ -43,7 +46,7 @@ describe('どうぶつの下ごしらえ', () => {
   for (const animal of ANIMALS) {
     it(`${animal}:編み地・左右の手・目・頭飾りが見つかり、形は変わらない`, () => {
       const out = prepare(animal);
-      const root = parseSvg(out);
+      const root = parsePartner(out);
       expect(root.querySelectorAll('.pt-knit')).toHaveLength(1);
       for (const side of ['l', 'r']) {
         const hand = root.querySelectorAll(`.pt-hand-${side}`);
@@ -56,14 +59,14 @@ describe('どうぶつの下ごしらえ', () => {
       expect(root.querySelectorAll('.pt-deco')).toHaveLength(1);
 
       // どうぶつの部分は、元の素材と同じ形が同じ数だけある
-      const animalOnly = parseSvg(out);
+      const animalOnly = parsePartner(out);
       animalOnly.querySelector('.pt-deco')!.parentElement!.remove();
-      expect(shapes(animalOnly.outerHTML, 'x0-')).toEqual(shapes(read(`animals/${animal}.svg`)));
+      expect(shapes(animalOnly, 'x0-')).toEqual(shapes(read(`animals/${animal}.svg`)));
     });
   }
 
   it('ひつじの手は、左の手→右の手の順にまとまる(ほかの5匹と同じ)', () => {
-    const root = parseSvg(prepare('sheep'));
+    const root = parsePartner(prepare('sheep'));
     const l = root.querySelector('.pt-hand-l')!;
     const r = root.querySelector('.pt-hand-r')!;
     expect(l.nextElementSibling).toBe(r);
@@ -71,20 +74,43 @@ describe('どうぶつの下ごしらえ', () => {
     for (const line of root.querySelectorAll('line')) expect(line.getAttribute('stroke-linecap')).toBe('round');
   });
 
+  for (const animal of ANIMALS) {
+    it(`${animal}:影だけ動かない SVG、ほかはすべて体ごと動かす SVG(.pt-react > .pt-breath)の中。切り取りの型はいちばん上の defs`, () => {
+      const stage = parsePartner(prepare(animal));
+      expect(stage.getAttribute('class')).toBe('pt-stage');
+      expect(Array.from(stage.children).map((c) => c.getAttribute('class'))).toEqual(['pt-shadow', 'pt-react']);
+      const shadow = stage.querySelector('.pt-shadow')!;
+      expect(Array.from(shadow.children).map((c) => `${c.tagName}:${c.getAttribute('fill')}`)).toEqual(['ellipse:#000']);
+      const body = stage.querySelector('.pt-react > svg')!;
+      expect(body.getAttribute('class')).toBe('pt-svg pt-breath');
+      expect(body.getAttribute('viewBox')).toBe(shadow.getAttribute('viewBox'));
+      // 動くまとまりは SVG の中に作らない(体ごとの動きは HTML の部品で)
+      expect(body.querySelector('.pt-breath, .pt-react')).toBeNull();
+      const defs = Array.from(body.children).find((c) => c.tagName === 'defs')!;
+      for (const c of body.querySelectorAll('clipPath, mask')) expect(c.parentElement).toBe(defs);
+      // 切り取る部品が指す型は、同じ SVG の中にある
+      for (const e of body.querySelectorAll('[clip-path], [mask]')) {
+        const ref = /url\(#([^)]+)\)/.exec(e.getAttribute('clip-path') ?? e.getAttribute('mask')!)![1];
+        expect(defs.querySelector(`[id="${ref}"]`)).not.toBeNull();
+      }
+      expect(body.querySelectorAll('[clip-path]').length).toBeGreaterThan(0);
+    });
+  }
+
   it('ひつじの足は体の前。呼吸のまとまりの中で、手と影には入らない', () => {
-    const root = parseSvg(prepare('sheep'));
+    const root = parsePartner(prepare('sheep'));
     const legs = Array.from(root.querySelectorAll('ellipse')).filter((e) => e.getAttribute('cy') === '204');
     expect(legs).toHaveLength(2);
     for (const leg of legs) {
-      expect(leg.closest('.pt-breath')).not.toBeNull();
+      expect(leg.closest('.pt-react')).not.toBeNull();
       expect(leg.closest('.pt-hand-l, .pt-hand-r')).toBeNull();
       expect(leg.getAttribute('fill')).toBe('#4a4350');
     }
   });
 
   it('同じ画面に何匹いても id がぶつからない', () => {
-    const a = parseSvg(prepare('cat', 'a1-'));
-    const b = parseSvg(prepare('cat', 'b2-'));
+    const a = parsePartner(prepare('cat', 'a1-'));
+    const b = parsePartner(prepare('cat', 'b2-'));
     const ids = [...a.querySelectorAll('[id]'), ...b.querySelectorAll('[id]')].map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
     // url(#…) はすべて、同じ絵の中の id を指している
@@ -104,7 +130,7 @@ describe('どうぶつの下ごしらえ', () => {
 describe('かぎ針の作品', () => {
   for (const animal of ANIMALS) {
     it(`${animal}:右の手はかぎ針を手の絵の下に持ち、左の手は手だけ。棒針と赤い玉はない`, () => {
-      const root = parseSvg(prepare(animal, 'x0-', HOOK));
+      const root = parsePartner(prepare(animal, 'x0-', HOOK));
       const l = root.querySelector('.pt-hand-l')!;
       const r = root.querySelector('.pt-hand-r')!;
       expect(Array.from(l.children).map((c) => c.tagName)).toEqual(['ellipse']);
@@ -159,7 +185,7 @@ describe('新しい絵(PNG)の子', () => {
     decoration: img('deco', -10, -30, 20, 30),
   };
   const make = (animal: (typeof ANIMALS)[number], png: Partial<PartnerPng> = {}, wear = [], hook?: string) =>
-    parseSvg(
+    parsePartner(
       preparePngPartner({
         animal: read(`animals/${animal}.svg`),
         decoration: read(`decorations/${anchors.defaultDecoration[animal]}.svg`),
@@ -176,12 +202,14 @@ describe('新しい絵(PNG)の子', () => {
   for (const animal of ANIMALS) {
     it(`${animal}:重なりは 影 → 体 → 目 → 編み地 → 左右の手 → 頭飾り。動かすまとまりの目印は今と同じ`, () => {
       const root = make(animal);
-      const breath = root.querySelector('.pt-react > .pt-breath')!;
+      const breath = root.querySelector(':scope > .pt-react > svg.pt-breath')!;
       expect(breath).not.toBeNull();
-      // 影は呼吸の外(動かない)
-      const shadow = Array.from(root.children).find((c) => c.tagName === 'ellipse')!;
-      expect(shadow.getAttribute('fill')).toBe('#000');
+      // 影は動かない別の SVG
+      const shadow = root.querySelectorAll(':scope > svg.pt-shadow > ellipse');
+      expect(shadow).toHaveLength(1);
+      expect(shadow[0].getAttribute('fill')).toBe('#000');
       expect(Array.from(breath.children).map((c) => c.tagName + (c.getAttribute('class') ? `.${c.getAttribute('class')}` : ''))).toEqual([
+        'defs',
         'image',
         'g.pt-eye',
         'rect.pt-knit',
