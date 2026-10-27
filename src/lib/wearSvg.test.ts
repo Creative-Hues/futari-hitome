@@ -19,7 +19,7 @@ function item(key: keyof typeof wear.worn, color = '#e8505c'): WearInput {
   return { dept: DEPT_OF[w.department], svg: read(`wear/${w.file}`), color, shade: '#c04450' };
 }
 
-function dress(animal: Animal, items: WearInput[], prefix = 'x0-', anchorY?: number) {
+function dress(animal: Animal, items: WearInput[], prefix = 'x0-', anchorY?: number, hook?: string) {
   const a = anchors.anchors[animal];
   return parseSvg(
     preparePartner({
@@ -29,6 +29,7 @@ function dress(animal: Animal, items: WearInput[], prefix = 'x0-', anchorY?: num
       scale: anchors.decorationScale,
       prefix,
       wear: items,
+      hook,
     }),
   );
 }
@@ -76,6 +77,20 @@ describe('身につける作品(10通り)', () => {
     const styles = Array.from(root.querySelectorAll('.pt-wear')).map((b) => b.getAttribute('style'));
     expect(styles.filter((s) => s!.includes('#f6c94a'))).toHaveLength(2);
     expect(styles.filter((s) => s!.includes('#a99ad6'))).toHaveLength(1);
+  });
+
+  it('手袋とかぎ針:ねこ・ラッコは かぎ針 → 手 → 手袋 の順に重なる', () => {
+    const hook = read('tools/crochet_hook.svg');
+    for (const key of ['paws_cat', 'paws_otter'] as const) {
+      const root = dress(wear.worn[key].animal as Animal, [item(key)], 'x0-', undefined, hook);
+      const r = root.querySelector('.pt-hand-r')!;
+      expect(Array.from(r.children).map((c) => c.tagName + (c.getAttribute('class') ? `.${c.getAttribute('class')}` : ''))).toEqual([
+        'g.crochet-hook',
+        'ellipse',
+        'g.pt-wear',
+      ]);
+      expect(Array.from(root.querySelector('.pt-hand-l')!.children).map((c) => c.tagName)).toEqual(['ellipse', 'g']);
+    }
   });
 
   it('重ね順:アザラシはセーターの上に帽子', () => {

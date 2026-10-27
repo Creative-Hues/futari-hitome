@@ -8,6 +8,9 @@
 - 編んでいる作品は x=104 y=146 幅32 の四角(url(#knit)の編み目模様)。高さを進み具合で変える(試作では4〜44)。色は作品の色に差し替える
 - anchors.json:頭飾りをつける位置(動物ごと)と大きさ、最初の頭飾り
 
+## tools/
+- crochet_hook.svg:かぎ針。かぎ針の作品で右の手に持たせる(入れ方は tools/README.md)
+
 ## decorations/
 - 頭飾り10種類。viewBox -22 -40 44 44 で、(0,0) が頭に触れる点
 - 花:tulip, cosmos, hydrangea, sakura, daisy / 葉っぱ:sprout, clover / 海:seaweed, coral, shell

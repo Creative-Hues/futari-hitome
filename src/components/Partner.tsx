@@ -3,7 +3,7 @@
 // 絵は最初に1回だけ作り、数えるたびに作り直さない。動きはすべて CSS(app.css、速さは tokens.css)。
 import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { BODY_TONE, ITEM_SHADE } from '../config/room';
-import { ANIMAL_NAMES, DECORATION_SCALE, animalSvg, decorationAnchor, decorationSvg, defaultDecoration } from '../data/animals';
+import { ANIMAL_NAMES, CROCHET_HOOK_SVG, DECORATION_SCALE, animalSvg, decorationAnchor, decorationSvg, defaultDecoration } from '../data/animals';
 import { animalArt, decorationArt, wearArt } from '../data/art';
 import { hatDecorationY, wornSvg } from '../data/wear';
 import type { Placed } from '../lib/artConfig';
@@ -145,6 +145,7 @@ export function Partner({
       scale: DECORATION_SCALE,
       prefix: uniquePrefix('p'),
       wear,
+      hook: usedTool === 'crochet' ? CROCHET_HOOK_SVG : undefined,
     };
     if (!png) return preparePartner(input);
     // 画像がそろうまでは、絵の場所を空けたまま待つ
@@ -162,7 +163,7 @@ export function Partner({
         decoration: plan.decoration === null ? null : at(plan.decoration),
       },
     });
-  }, [animal, deco, wearKey, anchor.y, plan, urls?.join(','), !!png]);
+  }, [animal, deco, wearKey, anchor.y, plan, urls?.join(','), !!png, usedTool]);
 
   const box = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);

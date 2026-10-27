@@ -3,6 +3,7 @@
 //
 // できあがりの重なり(下から):
 //   影 / [ふれあい [呼吸 [体・身につけた作品・編み地・左右の手(.pt-hand-l / .pt-hand-r、手袋もこの中)・頭飾り(.pt-deco)]]]
+// かぎ針の作品では、左右の手から棒針を外し、右の手にかぎ針を持たせる(assets/tools/README.md)。
 //
 // 新しい絵(PNG)の子は preparePngPartner で、同じ重なり・同じ目印のまとまりに PNG を置く(動きの CSS はそのまま使える)。
 // 絵の座標は SVG と同じ 240×240。PNG のない部品は、今のSVGから取り出して置く。
@@ -36,6 +37,8 @@ export interface PartnerSvgInput {
   prefix: string;
   /** 身につけた作品(なければ空) */
   wear?: WearInput[];
+  /** かぎ針の素材(assets/tools/crochet_hook.svg)。かぎ針の作品のときだけ渡す。なければ棒針 */
+  hook?: string;
 }
 
 /** 新しい絵(PNG)の部品。null の部品は今のSVGを使う。位置はすべて 240 の座標(頭飾りは頭飾りの座標) */
@@ -60,9 +63,10 @@ function setRoot(root: Element) {
 }
 
 /** 素材のSVGに、動かす部品の目印と色の CSS 変数を付ける */
-function markAll(root: Element, prefix: string) {
+function markAll(root: Element, prefix: string, hook?: string) {
   markKnit(root, prefix);
   markHands(root);
+  if (hook) holdHook(root, hook, prefix);
   markBody(root, prefix);
   for (const c of root.querySelectorAll('circle')) {
     if (EYE_FILLS.includes(c.getAttribute('fill') ?? '')) {
@@ -75,7 +79,7 @@ function markAll(root: Element, prefix: string) {
 export function preparePartner(i: PartnerSvgInput): string {
   const root = parseSvg(prefixIds(i.animal, i.prefix));
   setRoot(root);
-  markAll(root, i.prefix);
+  markAll(root, i.prefix, i.hook);
   if (i.wear?.length) addWear(root, i.wear, i.prefix);
   return finish(root, i, null);
 }
@@ -86,7 +90,7 @@ export function preparePartner(i: PartnerSvgInput): string {
  */
 export function preparePngPartner(i: PartnerSvgInput & { png: PartnerPng }): string {
   const src = parseSvg(prefixIds(i.animal, i.prefix));
-  markAll(src, i.prefix);
+  markAll(src, i.prefix, i.hook);
   const root = parseSvg(`<svg xmlns="${SVG_NS}" viewBox="${src.getAttribute('viewBox')}"></svg>`);
   setRoot(root);
   const take = (e: Element) => root.appendChild(root.ownerDocument.importNode(e, true)) as Element;
@@ -221,4 +225,27 @@ function regroupHands(root: Element): [Element, Element] {
   for (const p of rightParts) gr.appendChild(p);
   if (needleGroup.children.length === 0) needleGroup.remove();
   return [gl, gr];
+}
+
+/** 棒針の先の赤い玉 */
+const NEEDLE_BALL = '#e45864';
+
+/**
+ * かぎ針を持たせる。左右の手から棒針(線2本と赤い玉)を外し、右の手には、棒針のあった場所(手の絵より下の層)に
+ * crochet-right の中身を入れる(手がかぎ針を握って見える)。左の手は手だけ
+ */
+function holdHook(root: Element, hook: string, prefix: string) {
+  const tool = parseSvg(prefixIds(hook, `${prefix}h-`)).querySelector(`[id="${prefix}h-crochet-right"]`);
+  if (!tool) throw new Error('かぎ針の絵が見つかりません');
+  for (const side of ['l', 'r'] as const) {
+    const hand = root.querySelector(`.pt-hand-${side}`)!;
+    const needles = children(hand).filter(
+      (c) => c.tagName === 'line' || (c.tagName === 'circle' && c.getAttribute('fill') === NEEDLE_BALL),
+    );
+    if (needles.length !== 3) throw new Error('棒針が見つかりません');
+    if (side === 'r') {
+      for (const c of children(tool)) hand.insertBefore(root.ownerDocument.importNode(c, true), needles[0]);
+    }
+    for (const n of needles) n.remove();
+  }
 }

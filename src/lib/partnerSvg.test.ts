@@ -8,7 +8,9 @@ import { parseSvg } from './svgPrep';
 const read = (p: string) => readFileSync(`assets/${p}`, 'utf8');
 const ANIMALS = ['sheep', 'cat', 'stoat', 'axolotl', 'seal', 'otter'] as const;
 
-function prepare(animal: (typeof ANIMALS)[number], prefix = 'x0-') {
+const HOOK = read('tools/crochet_hook.svg');
+
+function prepare(animal: (typeof ANIMALS)[number], prefix = 'x0-', hook?: string) {
   const deco = anchors.defaultDecoration[animal];
   return preparePartner({
     animal: read(`animals/${animal}.svg`),
@@ -16,6 +18,7 @@ function prepare(animal: (typeof ANIMALS)[number], prefix = 'x0-') {
     anchor: anchors.anchors[animal],
     scale: anchors.decorationScale,
     prefix,
+    hook,
   });
 }
 
@@ -68,6 +71,17 @@ describe('どうぶつの下ごしらえ', () => {
     for (const line of root.querySelectorAll('line')) expect(line.getAttribute('stroke-linecap')).toBe('round');
   });
 
+  it('ひつじの足は体の前。呼吸のまとまりの中で、手と影には入らない', () => {
+    const root = parseSvg(prepare('sheep'));
+    const legs = Array.from(root.querySelectorAll('ellipse')).filter((e) => e.getAttribute('cy') === '204');
+    expect(legs).toHaveLength(2);
+    for (const leg of legs) {
+      expect(leg.closest('.pt-breath')).not.toBeNull();
+      expect(leg.closest('.pt-hand-l, .pt-hand-r')).toBeNull();
+      expect(leg.getAttribute('fill')).toBe('#4a4350');
+    }
+  });
+
   it('同じ画面に何匹いても id がぶつからない', () => {
     const a = parseSvg(prepare('cat', 'a1-'));
     const b = parseSvg(prepare('cat', 'b2-'));
@@ -84,6 +98,32 @@ describe('どうぶつの下ごしらえ', () => {
     expect(out).toContain('fill: var(--knit-color, #5aa3df)');
     expect(out).toContain('stroke: var(--knit-shade, #3f86c4)');
     expect(out).toContain('stroke: var(--knit-line, #2f6aa3)');
+  });
+});
+
+describe('かぎ針の作品', () => {
+  for (const animal of ANIMALS) {
+    it(`${animal}:右の手はかぎ針を手の絵の下に持ち、左の手は手だけ。棒針と赤い玉はない`, () => {
+      const root = parseSvg(prepare(animal, 'x0-', HOOK));
+      const l = root.querySelector('.pt-hand-l')!;
+      const r = root.querySelector('.pt-hand-r')!;
+      expect(Array.from(l.children).map((c) => c.tagName)).toEqual(['ellipse']);
+      expect(Array.from(r.children).map((c) => `${c.tagName}${c.getAttribute('class') ? `.${c.getAttribute('class')}` : ''}`)).toEqual([
+        'g.crochet-hook',
+        'ellipse',
+      ]);
+      expect(root.querySelectorAll('line')).toHaveLength(2);
+      expect(root.querySelectorAll('.crochet-hook line')).toHaveLength(2);
+      expect(root.querySelector('circle[fill="#e45864"]')).toBeNull();
+      // かぎ針の形は素材のまま
+      expect(shapes(r.querySelector('.crochet-hook')!.outerHTML)).toEqual(
+        shapes(parseSvg(HOOK).querySelector('.crochet-hook')!.outerHTML),
+      );
+    });
+  }
+
+  it('棒針の作品は今までどおり(かぎ針を入れない)', () => {
+    expect(prepare('cat')).not.toContain('crochet-hook');
   });
 });
 
@@ -118,7 +158,7 @@ describe('新しい絵(PNG)の子', () => {
     knit: { x: 105, y: 147, width: 30 },
     decoration: img('deco', -10, -30, 20, 30),
   };
-  const make = (animal: (typeof ANIMALS)[number], png: Partial<PartnerPng> = {}, wear = []) =>
+  const make = (animal: (typeof ANIMALS)[number], png: Partial<PartnerPng> = {}, wear = [], hook?: string) =>
     parseSvg(
       preparePngPartner({
         animal: read(`animals/${animal}.svg`),
@@ -127,6 +167,7 @@ describe('新しい絵(PNG)の子', () => {
         scale: anchors.decorationScale,
         prefix: 'x0-',
         wear,
+        hook,
         png: { ...PNG, ...png },
       }),
     );
@@ -173,6 +214,15 @@ describe('新しい絵(PNG)の子', () => {
     // SVGの手は体の色(wool)を使うので、その色の変数も持っている
     expect(root.querySelector('[id="x0-wool"] stop')!.getAttribute('style')).toContain('var(--body-0');
     expect(hrefs(root)).toEqual(['/art/body.png']);
+  });
+
+  it('手のPNGがない子のかぎ針の作品は、SVGのかぎ針の手。手のPNGがあればPNGの手のまま', () => {
+    const svgHands = make('cat', { hands: null }, [], HOOK);
+    expect(svgHands.querySelector('.pt-hand-r .crochet-hook')).not.toBeNull();
+    expect(svgHands.querySelector('.pt-hand-l line')).toBeNull();
+    const pngHands = make('cat', {}, [], HOOK);
+    expect(pngHands.querySelector('.crochet-hook')).toBeNull();
+    expect(hrefs(pngHands.querySelector('.pt-hand-r')!)).toEqual(['/art/hr.png']);
   });
 
   it('もとの目の色:ひつじは白、ほかは黒', () => {

@@ -1,5 +1,6 @@
-// 6匹と頭飾り10種類の素材(assets/ のSVGを文字として読み込む。中身は変えない)
+// 6匹と頭飾り10種類、かぎ針の素材(assets/ のSVGを文字として読み込む。中身は変えない)
 import anchors from '../../assets/animals/anchors.json';
+import crochetHook from '../../assets/tools/crochet_hook.svg?raw';
 import type { AnimalId } from '../lib/db';
 import { decorationArt } from './art';
 
@@ -37,6 +38,9 @@ const decorationFiles = import.meta.glob('../../assets/decorations/*.svg', {
   import: 'default',
   eager: true,
 }) as Record<string, string>;
+
+/** かぎ針の素材(かぎ針の作品で、右の手に持たせる) */
+export const CROCHET_HOOK_SVG: string = crochetHook;
 
 export function animalSvg(animal: AnimalId): string {
   return animalFiles[`../../assets/animals/${animal}.svg`];
